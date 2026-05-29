@@ -7,15 +7,18 @@ Excel/*.csv
 PaySlips_Output.pdf
 *.pdf
 
-# ─── Python ────────────────────────────────────────────────────────────────────
+# ─── Windows Build Output ──────────────────────────────────────────────────────
+dist/
+build/
+Output/
+*.spec
 __pycache__/
+
+# ─── Python ────────────────────────────────────────────────────────────────────
 *.py[cod]
 *.pyo
 *.pyd
-.Python
 *.egg-info/
-dist/
-build/
 *.egg
 
 # ─── Virtual Environments ──────────────────────────────────────────────────────
@@ -23,6 +26,9 @@ venv/
 .venv/
 env/
 .env/
+
+# ─── App settings (stored in user home, not project) ──────────────────────────
+.payslip_settings.json
 
 # ─── OS / Editor ───────────────────────────────────────────────────────────────
 .DS_Store
