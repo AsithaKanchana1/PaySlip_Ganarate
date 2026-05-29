@@ -1,0 +1,10 @@
+# This folder contains the monthly salary Excel file.
+#
+# ⚠️  The actual Excel file (*.xlsx) is excluded from Git by .gitignore
+#     because it contains private employee salary data.
+#
+# HOW TO USE:
+#   1. Save your Excel file here as:  Slary_Slips.xlsx
+#   2. Run from the project root:     python3 generate_payslips.py
+#
+# See README.md for full instructions and required column format.

@@ -1,0 +1,36 @@
+# ─── Excel Data Files (contains private salary data — never commit) ───────────
+Excel/*.xlsx
+Excel/*.xls
+Excel/*.csv
+
+# ─── Generated PDF Output ──────────────────────────────────────────────────────
+PaySlips_Output.pdf
+*.pdf
+
+# ─── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ─── Virtual Environments ──────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ─── OS / Editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
