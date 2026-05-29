@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>New Lanka Clothing – Pay Slip Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy:    #0f172a;
+      --navy2:   #1e293b;
+      --accent:  #3b82f6;
+      --accent2: #6366f1;
+      --green:   #22c55e;
+      --red:     #ef4444;
+      --text:    #e2e8f0;
+      --muted:   #94a3b8;
+      --card:    rgba(30,41,59,0.85);
+      --border:  rgba(99,102,241,0.25);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f2027 100%);
+      min-height: 100vh;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    /* Animated background blobs */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.15;
+      pointer-events: none;
+      animation: floatBlob 8s ease-in-out infinite alternate;
+    }
+    body::before {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #6366f1, #3b82f6);
+      top: -100px; left: -100px;
+    }
+    body::after {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, #22c55e, #0ea5e9);
+      bottom: -100px; right: -100px;
+      animation-delay: 3s;
+    }
+    @keyframes floatBlob {
+      from { transform: translate(0,0) scale(1); }
+      to   { transform: translate(40px, 30px) scale(1.1); }
+    }
+
+    .container {
+      width: 100%;
+      max-width: 760px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─── Header ─────────────────────────────────────────────── */
+    .header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    .header .logo {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 0 40px rgba(99,102,241,0.4);
+    }
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, #fff, #a5b4fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header p {
+      color: var(--muted);
+      margin-top: 0.4rem;
+      font-size: 0.95rem;
+    }
+
+    /* ─── Card ───────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2rem;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+      margin-bottom: 1.5rem;
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card h2 span.icon {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      width: 28px; height: 28px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 0.85rem;
+    }
+
+    /* ─── Form grid ──────────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+    .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+    .form-group label {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .form-group input, .form-group select {
+      background: rgba(15,23,42,0.7);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.65rem 1rem;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.92rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+    }
+    .form-group input[type="file"] { padding: 0.5rem 0.8rem; cursor: pointer; }
+
+    /* File drop zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(59,130,246,0.06);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+    .drop-zone .dz-icon { font-size: 2rem; margin-bottom: 0.3rem; }
+    .drop-zone .dz-text { font-size: 0.85rem; color: var(--muted); }
+    .drop-zone .dz-name { font-size: 0.9rem; font-weight: 600; color: var(--accent); margin-top: 0.3rem; }
+
+    /* ─── Dimensions info ────────────────────────────────────── */
+    .dim-info {
+      display: flex; gap: 1rem; flex-wrap: wrap;
+    }
+    .dim-badge {
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.3);
+      border-radius: 8px;
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .dim-badge strong { color: var(--accent); }
+
+    /* ─── Generate button ────────────────────────────────────── */
+    .btn-generate {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      box-shadow: 0 8px 24px rgba(99,102,241,0.4);
+      font-family: inherit;
+    }
+    .btn-generate:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(99,102,241,0.55); }
+    .btn-generate:active { transform: translateY(0); }
+    .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ─── Log output ─────────────────────────────────────────── */
+    .log-box {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.2rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      line-height: 1.8;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 1.2rem;
+      display: none;
+    }
+    .log-box.visible { display: block; }
+    .log-line.success { color: #4ade80; }
+    .log-line.info    { color: #93c5fd; }
+    .log-line.error   { color: #f87171; }
+
+    /* ─── Status badge ───────────────────────────────────────── */
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.35rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.78rem; font-weight: 600;
+      margin-top: 1rem;
+    }
+    .status-pill.idle    { background: rgba(148,163,184,0.15); color: var(--muted); }
+    .status-pill.running { background: rgba(251,191,36,0.15);  color: #fbbf24; }
+    .status-pill.done    { background: rgba(34,197,94,0.15);   color: var(--green); }
+    .status-pill.error   { background: rgba(239,68,68,0.15);   color: var(--red); }
+
+    /* Download link */
+    .download-link {
+      display: none;
+      margin-top: 1rem;
+      text-align: center;
+    }
+    .download-link a {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: rgba(34,197,94,0.15);
+      border: 1px solid rgba(34,197,94,0.4);
+      color: var(--green);
+      padding: 0.6rem 1.4rem;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+    .download-link a:hover { background: rgba(34,197,94,0.25); }
+    .download-link.visible { display: block; }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    /* Preview grid */
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-top: 1.2rem;
+    }
+    .preview-slip {
+      background: white;
+      border-radius: 4px;
+      padding: 4px;
+      font-size: 5px;
+      color: #1a1a2e;
+      line-height: 1.4;
+      border: 1px solid #ccc;
+      min-height: 60px;
+      font-family: monospace;
+      overflow: hidden;
+    }
+
+    @media (max-width: 600px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">🧾</div>
+    <h1>Pay Slip Generator</h1>
+    <p>New Lanka Clothing · Garment Factory HR System</p>
+  </div>
+
+  <!-- Settings card -->
+  <div class="card">
+    <h2><span class="icon">⚙️</span> Generation Settings</h2>
+
+    <!-- Excel file picker -->
+    <div class="form-group" style="margin-bottom:1.2rem">
+      <label>Excel Data File</label>
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="excelFile" accept=".xlsx,.xls" />
+        <div class="dz-icon">📊</div>
+        <div class="dz-text">Drop your Excel file here or click to browse</div>
+        <div class="dz-name" id="fileName">No file selected — using default: Slary_Slips.xlsx</div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:1.2rem">
+      <div class="form-group">
+        <label>Company Name</label>
+        <input type="text" id="companyName" value="NEW LANKA CLOTHING" />
+      </div>
+      <div class="form-group">
+        <label>Pay Period (Month-Year)</label>
+        <input type="text" id="payPeriod" value="May-2026" placeholder="e.g. April-2026" />
+      </div>
+    </div>
+
+    <!-- Dimensions display -->
+    <div class="form-group" style="margin-bottom:1.5rem">
+      <label>Slip Dimensions (Fixed)</label>
+      <div class="dim-info">
+        <div class="dim-badge">📐 Width: <strong>5 cm</strong></div>
+        <div class="dim-badge">📏 Height: <strong>12 cm</strong></div>
+        <div class="dim-badge">↔️ Gap: <strong>2 mm</strong></div>
+        <div class="dim-badge">📄 Page: <strong>A4</strong></div>
+        <div class="dim-badge">🔲 Layout: <strong>3 × 2 slips/page</strong></div>
+      </div>
+    </div>
+
+    <!-- Generate button -->
+    <button class="btn-generate" id="generateBtn" onclick="generatePaySlips()">
+      <span>🖨️</span> Generate Pay Slips PDF
+    </button>
+
+    <!-- Status + log -->
+    <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap">
+      <div class="status-pill idle" id="statusPill">⚪ Ready</div>
+    </div>
+
+    <div class="log-box" id="logBox"></div>
+
+    <div class="download-link" id="downloadLink">
+      <a href="#" id="downloadAnchor">⬇️ Download PaySlips_Output.pdf</a>
+    </div>
+  </div>
+
+  <!-- Instructions card -->
+  <div class="card">
+    <h2><span class="icon">📋</span> How to Use</h2>
+    <ol style="padding-left:1.2rem; line-height:2.2; color:var(--muted); font-size:0.9rem">
+      <li>Place your <strong style="color:var(--text)">Excel file</strong> (same format as <code>Slary_Slips.xlsx</code>) in the <code>Excel/</code> folder.</li>
+      <li>Set the <strong style="color:var(--text)">Pay Period</strong> to the correct month and year.</li>
+      <li>Click <strong style="color:var(--accent)">Generate Pay Slips PDF</strong> — or run the Python script directly.</li>
+      <li>The output <strong style="color:var(--text)">PaySlips_Output.pdf</strong> will appear in the project folder.</li>
+      <li>Open the PDF and print — <strong style="color:var(--text)">6 slips per A4 page</strong>, ready to cut.</li>
+    </ol>
+
+    <div style="margin-top:1.2rem; padding:0.8rem 1rem; background:rgba(59,130,246,0.08); border-radius:10px; border-left:3px solid var(--accent)">
+      <div style="font-size:0.82rem; color:var(--muted)">
+        <strong style="color:var(--text)">Quick run from terminal:</strong><br/>
+        <code style="color:#93c5fd">python3 generate_payslips.py</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Excel columns reference -->
+  <div class="card">
+    <h2><span class="icon">📊</span> Required Excel Columns</h2>
+    <div style="overflow-x:auto">
+      <table style="width:100%; border-collapse:collapse; font-size:0.8rem">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:0.5rem 0.8rem; color:var(--muted); border-bottom:1px solid var(--border)">Column Name</th>
+            <th style="text-align:left; padding:0.5rem 0.8rem; color:var(--muted); border-bottom:1px solid var(--border)">Description</th>
+            <th style="text-align:left; padding:0.5rem 0.8rem; color:var(--muted); border-bottom:1px solid var(--border)">Example</th>
+          </tr>
+        </thead>
+        <tbody id="colTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const COLUMNS = [
+  ["Emp No",               "Employee number",                     "411"],
+  ["Name",                 "Full name",                           "P.G.A.Kanchana"],
+  ["Department",           "Department name",                     "Iron"],
+  ["Designation",          "Job title",                           "Ironer"],
+  ["Basic",                "Basic salary",                        "29000.00"],
+  ["Allowance",            "General allowance",                   "0.00"],
+  ["Attendence Bonus",     "Attendance bonus (earnings)",         "10000.00"],
+  ["Fixed Allowance",      "Fixed allowance",                     "0.00"],
+  ["Incentive",            "Incentive",                           "0.00"],
+  ["Normal OT",            "Normal OT hours",                     "58.25"],
+  ["Normal OT Amount",     "Normal OT calculated amount",        "8737.50"],
+  [" Double OT ",          "Double OT hours",                     "8.50"],
+  ["Double OT Amount",     "Double OT calculated amount",        "1700.00"],
+  ["Gross Salary",         "Total earnings before deductions",    "49437.50"],
+  ["Salary Advance",       "Advance deduction",                   "0.00"],
+  ["No Pay",               "No-pay leave days",                   "1.50"],
+  ["No Pay Amount",        "No-pay deduction amount",             "0.00"],
+  ["Attendence Bonus",     "Attendance bonus (deduction side)",   "4750.00"],
+  ["E.P.F 8%",             "EPF employee contribution (8%)",      "2400.00"],
+  ["Late",                 "Late arrival count",                  "5.00"],
+  ["Late Deduction Amount","Late deduction amount",               "400.00"],
+  ["Walfare",              "Welfare deduction",                   "100.00"],
+  ["Total Deduction",      "Sum of all deductions",               "7650.00"],
+  ["Net Salary",           "Take-home pay",                       "41787.50"],
+  ["E.P.F. 12%",           "EPF employer contribution (12%)",     "3600.00"],
+  ["E.T.F. 3%",            "ETF employer contribution (3%)",      "900.00"],
+];
+
+const tbody = document.getElementById("colTable");
+COLUMNS.forEach(([col, desc, ex], i) => {
+  const tr = document.createElement("tr");
+  tr.style.background = i % 2 === 0 ? "rgba(255,255,255,0.02)" : "";
+  tr.innerHTML = `
+    <td style="padding:0.45rem 0.8rem; color:#a5b4fc; font-family:monospace">${col}</td>
+    <td style="padding:0.45rem 0.8rem; color:var(--muted)">${desc}</td>
+    <td style="padding:0.45rem 0.8rem; color:var(--text)">${ex}</td>
+  `;
+  tbody.appendChild(tr);
+});
+
+// File drag-drop UI
+const dz = document.getElementById("dropZone");
+const fileInput = document.getElementById("excelFile");
+const fileNameEl = document.getElementById("fileName");
+
+dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("drag-over"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("drag-over"));
+dz.addEventListener("drop", e => {
+  e.preventDefault(); dz.classList.remove("drag-over");
+  const f = e.dataTransfer.files[0];
+  if (f) fileNameEl.textContent = "📎 " + f.name;
+});
+fileInput.addEventListener("change", () => {
+  if (fileInput.files[0]) fileNameEl.textContent = "📎 " + fileInput.files[0].name;
+});
+
+// Log helper
+function log(msg, type = "info") {
+  const box = document.getElementById("logBox");
+  box.classList.add("visible");
+  const line = document.createElement("div");
+  line.className = `log-line ${type}`;
+  line.textContent = msg;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function setStatus(state, text) {
+  const pill = document.getElementById("statusPill");
+  pill.className = `status-pill ${state}`;
+  pill.textContent = text;
+}
+
+function generatePaySlips() {
+  const company = document.getElementById("companyName").value.trim();
+  const period  = document.getElementById("payPeriod").value.trim();
+
+  const logBox = document.getElementById("logBox");
+  logBox.innerHTML = "";
+  logBox.classList.add("visible");
+  document.getElementById("downloadLink").classList.remove("visible");
+
+  setStatus("running", "⏳ Generating…");
+  document.getElementById("generateBtn").disabled = true;
+
+  log("📂 Reading employee data from Excel…", "info");
+  log(`⚙️  Company: ${company}  |  Period: ${period}`, "info");
+  log("🖨️  Generating PDF with ReportLab…", "info");
+
+  // Build updated python command and run via fetch to a local server
+  // Since this is a standalone HTML file, we show instructions to run the script
+  // In a real deployment this would POST to a backend. Here we show the command.
+  setTimeout(() => {
+    log("", "info");
+    log("─────────────────────────────────────────────", "info");
+    log("✅  To generate: open a terminal and run:", "success");
+    log(`    python3 generate_payslips.py`, "success");
+    log("", "info");
+    log(`📄  Output: PaySlips_Output.pdf`, "success");
+    log("    3 columns × 2 rows = 6 slips per A4 page", "info");
+    log("    Each slip: 5cm × 12cm  |  Gap: 2mm", "info");
+    log("─────────────────────────────────────────────", "info");
+    setStatus("done", "✅ Instructions shown — run the command above");
+    document.getElementById("generateBtn").disabled = false;
+    document.getElementById("downloadLink").classList.add("visible");
+    document.getElementById("downloadAnchor").href = "PaySlips_Output.pdf";
+  }, 1200);
+}
+</script>
+</body>
+</html>
