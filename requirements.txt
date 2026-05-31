@@ -6,5 +6,4 @@ customtkinter>=5.2.0    # Modern GUI framework
 openpyxl>=3.1.0         # Read Excel files
 reportlab>=4.0.0        # Generate PDF files
 pillow>=10.0.0          # Image support (required by customtkinter)
-pywebview>=5.0.0        # Desktop webview frontend
 pyinstaller>=6.0.0      # Build Windows .exe (only needed on the build machine)

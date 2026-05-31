@@ -271,7 +271,9 @@ def main():
         )
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    index_path = os.path.join(base_dir, "webview", "index.html")
+    index_path = os.path.join(base_dir, "ui", "index.html")
+    if not os.path.exists(index_path):
+        index_path = os.path.join(base_dir, "webview", "index.html")
 
     if not os.path.exists(index_path):
         raise SystemExit(f"Web UI not found: {index_path}")
