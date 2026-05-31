@@ -1,0 +1,31 @@
+{
+  "ads": [
+    {
+      "id": "ad-001",
+      "placement": "left-rail",
+      "badge": "Sponsor",
+      "title": "Payroll software training",
+      "description": "Short course for finance teams that want cleaner monthly workflows.",
+      "cta": "Learn more",
+      "url": "https://example.com/training"
+    },
+    {
+      "id": "ad-002",
+      "placement": "right-rail",
+      "badge": "Promo",
+      "title": "Office productivity tools",
+      "description": "A lightweight stack for document handling and reporting.",
+      "cta": "Open link",
+      "url": "https://example.com/tools"
+    },
+    {
+      "id": "ad-003",
+      "placement": "left-rail",
+      "badge": "Partner",
+      "title": "Local business services",
+      "description": "Banner slot reserved for a sponsor or affiliate offer.",
+      "cta": "Visit",
+      "url": "https://example.com/partner"
+    }
+  ]
+}

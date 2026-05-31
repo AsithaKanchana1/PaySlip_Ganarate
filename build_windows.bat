@@ -15,7 +15,7 @@ echo.
 
 :: Step 1 — Install dependencies
 echo [1/4] Installing Python dependencies...
-pip install customtkinter openpyxl reportlab pillow pyinstaller --quiet
+pip install customtkinter openpyxl reportlab pillow pywebview pyinstaller --quiet
 if %errorlevel% neq 0 (
     echo ERROR: Failed to install dependencies.
     pause & exit /b 1
@@ -48,9 +48,11 @@ pyinstaller ^
     --windowed ^
     --name "PaySlipGenerator" ^
     --add-data "payslip_core.py;." ^
+    --add-data "webview\index.html;webview" ^
     --hidden-import customtkinter ^
     --hidden-import openpyxl ^
     --hidden-import reportlab ^
+    --hidden-import webview ^
     --hidden-import PIL ^
     --collect-all customtkinter ^
     --collect-data customtkinter ^

@@ -16,6 +16,18 @@ import json
 import webbrowser
 from datetime import datetime
 
+try:
+    from webview_launcher import main as launch_webview_app
+except Exception as exc:
+    launch_webview_app = None
+    launch_webview_error = exc
+
+if __name__ == "__main__":
+    if launch_webview_app is None:
+        raise SystemExit(f"Webview launcher is unavailable: {launch_webview_error}")
+    launch_webview_app()
+    raise SystemExit
+
 # Import our core generation module
 try:
     from payslip_core import generate_pdf
@@ -40,6 +52,7 @@ APP_NAME = "Pay Slip Generator"
 APP_COMPANY = "New Lanka Clothing"
 DEVELOPER_NAME = "Asitha Kanchana"
 DEVELOPER_GITHUB = "https://github.com/AsithaKanchana1"
+SIDEBAR_WIDTH = 168
 
 
 def load_settings() -> dict:
@@ -84,6 +97,7 @@ class PaySlipApp(ctk.CTk):
         self.geometry("680x800")
         self.minsize(600, 720)
         self.resizable(True, True)
+        self.after(0, self._maximize_window)
 
         # App icon (if available)
         icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
@@ -122,9 +136,19 @@ class PaySlipApp(ctk.CTk):
             text_color="#94a3b8",
         ).pack(side="right", padx=24, pady=18)
 
+        # ── Main layout: left ad slot, center app, right ad slot ─────────────
+        main_row = ctk.CTkFrame(self, fg_color="transparent")
+        main_row.pack(fill="both", expand=True, padx=14, pady=(16, 8))
+        main_row.grid_columnconfigure(1, weight=1)
+        main_row.grid_rowconfigure(0, weight=1)
+
+        self._build_ad_sidebar(main_row, side="left", row=0, column=0)
+
         # ── Scrollable main body ──────────────────────────────────────────────
-        body = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        body.pack(fill="both", expand=True, padx=20, pady=(16, 8))
+        body = ctk.CTkScrollableFrame(main_row, fg_color="transparent")
+        body.grid(row=0, column=1, sticky="nsew", padx=12)
+
+        self._build_ad_sidebar(main_row, side="right", row=0, column=2)
 
         # ── Card 1 — Company Settings ─────────────────────────────────────────
         self._card(body, "⚙️  Company Settings")
@@ -323,6 +347,81 @@ class PaySlipApp(ctk.CTk):
             state="disabled",
         )
         self.open_pdf_btn.pack(fill="x", padx=4, pady=(0, 20))
+
+    def _build_ad_sidebar(self, parent, side: str, row: int, column: int):
+        panel = ctk.CTkFrame(parent, width=SIDEBAR_WIDTH, fg_color=("#0f172a", "#020817"), corner_radius=14)
+        panel.grid(row=row, column=column, sticky="ns", padx=0)
+        panel.grid_propagate(False)
+
+        title = "Sponsored" if side == "left" else "Promo"
+        ctk.CTkLabel(
+            panel,
+            text=title,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color="#93c5fd",
+        ).pack(anchor="w", padx=14, pady=(14, 4))
+
+        ctk.CTkFrame(panel, height=1, fg_color=("#1e3a8a", "#1e2d5a")).pack(fill="x", padx=14, pady=(0, 12))
+
+        ad_cards = [
+            (
+                "Small banner slot",
+                "Use this space for a compact sponsor image or affiliate message.",
+            ),
+            (
+                "Low-disruption format",
+                "Keeps the generator usable while reserving room for monetization.",
+            ),
+        ]
+
+        for card_title, card_text in ad_cards:
+            card = ctk.CTkFrame(panel, fg_color=("#111827", "#030712"), corner_radius=12)
+            card.pack(fill="x", padx=12, pady=(0, 10))
+            ctk.CTkLabel(
+                card,
+                text=card_title,
+                font=ctk.CTkFont(size=12, weight="bold"),
+                text_color="#e2e8f0",
+                wraplength=SIDEBAR_WIDTH - 34,
+                justify="left",
+            ).pack(anchor="w", padx=10, pady=(10, 4))
+            ctk.CTkLabel(
+                card,
+                text=card_text,
+                font=ctk.CTkFont(size=10),
+                text_color="#94a3b8",
+                wraplength=SIDEBAR_WIDTH - 34,
+                justify="left",
+            ).pack(anchor="w", padx=10, pady=(0, 10))
+
+        ctk.CTkButton(
+            panel,
+            text="Configure sponsor link",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            height=34,
+            fg_color=("#2563eb", "#1d4ed8"),
+            hover_color=("#1d4ed8", "#1e40af"),
+            command=lambda: webbrowser.open(DEVELOPER_GITHUB),
+        ).pack(fill="x", padx=12, pady=(0, 14))
+
+    def _maximize_window(self):
+        try:
+            self.state("zoomed")
+            return
+        except Exception:
+            pass
+
+        try:
+            self.attributes("-zoomed", True)
+            return
+        except Exception:
+            pass
+
+        try:
+            self.update_idletasks()
+            self.geometry(f"{self.winfo_screenwidth()}x{self.winfo_screenheight()}+0+0")
+        except Exception:
+            pass
 
     # ── Developer footer ──────────────────────────────────────────────────────
 
