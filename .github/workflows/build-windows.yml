@@ -13,6 +13,8 @@ jobs:
   build-windows:
     name: Build & Package (Windows)
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       # ── 1. Checkout code ────────────────────────────────────────────────────
@@ -97,7 +99,7 @@ jobs:
       - name: Create GitHub Release with installer
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           $tag     = "build-${{ steps.sha.outputs.short }}"
           $title   = "Pay Slip Generator - Build ${{ steps.sha.outputs.short }}"

@@ -36,6 +36,11 @@ MONTHS = [
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
+APP_NAME = "Pay Slip Generator"
+APP_COMPANY = "New Lanka Clothing"
+DEVELOPER_NAME = "Asitha Kanchana"
+DEVELOPER_GITHUB = "https://github.com/AsithaKanchana1"
+
 
 def load_settings() -> dict:
     try:
@@ -75,7 +80,7 @@ class PaySlipApp(ctk.CTk):
         self.settings = load_settings()
         now = datetime.now()
 
-        self.title("Pay Slip Generator — New Lanka Clothing")
+        self.title(f"{APP_NAME} — {APP_COMPANY}")
         self.geometry("680x800")
         self.minsize(600, 720)
         self.resizable(True, True)
@@ -246,6 +251,55 @@ class PaySlipApp(ctk.CTk):
             font=ctk.CTkFont(size=12), text_color="#94a3b8")
         self.status_label.pack(anchor="w", padx=4, pady=(2, 8))
 
+        # ── Card 4 — About & Developer Details ──────────────────────────────
+        self._card(body, "👤  About & Developer Details")
+
+        about_box = ctk.CTkFrame(body, fg_color=("#0f172a", "#020817"), corner_radius=12)
+        about_box.pack(fill="x", padx=4, pady=(0, 10))
+
+        ctk.CTkLabel(
+            about_box,
+            text=f"{APP_NAME} is a Windows-friendly desktop app for generating printer-ready PDF pay slips.",
+            font=ctk.CTkFont(size=12),
+            justify="left",
+            wraplength=590,
+            text_color="#cbd5e1",
+        ).pack(anchor="w", padx=14, pady=(12, 8))
+
+        details = [
+            ("Developer", DEVELOPER_NAME),
+            ("GitHub", DEVELOPER_GITHUB),
+            ("Supported on", "Windows 10/11, Linux"),
+        ]
+
+        for label, value in details:
+            row = ctk.CTkFrame(about_box, fg_color="transparent")
+            row.pack(fill="x", padx=14, pady=2)
+            ctk.CTkLabel(
+                row,
+                text=f"{label}:",
+                width=104,
+                anchor="w",
+                font=ctk.CTkFont(size=11, weight="bold"),
+                text_color="#94a3b8",
+            ).pack(side="left")
+            ctk.CTkLabel(
+                row,
+                text=value,
+                anchor="w",
+                font=ctk.CTkFont(size=11),
+                text_color="#e2e8f0",
+                cursor="hand2" if label == "GitHub" else "arrow",
+            ).pack(side="left")
+
+            if label == "GitHub":
+                def _open_github(_event, url=DEVELOPER_GITHUB):
+                    webbrowser.open(url)
+
+                row.bind("<Button-1>", _open_github)
+                for child in row.winfo_children():
+                    child.bind("<Button-1>", _open_github)
+
         # ── Log box ────────────────────────────────────────────────────────────
         self._card(body, "📋  Activity Log")
         self.log_box = ctk.CTkTextbox(
@@ -293,7 +347,7 @@ class PaySlipApp(ctk.CTk):
         # Clickable developer credit label
         dev_label = ctk.CTkLabel(
             footer,
-            text="Asitha  ❤️  Kanchana",
+            text=f"{DEVELOPER_NAME}  ❤️  {APP_COMPANY}",
             font=ctk.CTkFont(family="Helvetica", size=11),
             text_color=("#4a6fa5", "#5b82c0"),
             cursor="hand2",
@@ -308,7 +362,7 @@ class PaySlipApp(ctk.CTk):
             dev_label.configure(text_color=("#4a6fa5", "#5b82c0"))
 
         def _open_github(e):
-            webbrowser.open("https://github.com/AsithaKanchana1")
+            webbrowser.open(DEVELOPER_GITHUB)
 
         dev_label.bind("<Enter>",    _on_enter)
         dev_label.bind("<Leave>",    _on_leave)

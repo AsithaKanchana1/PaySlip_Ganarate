@@ -52,7 +52,7 @@ This folder contains the complete technical and user documentation for the **Pay
 | Gap between slips | 2 mm |
 | Output format | Single PDF file |
 | Input format | Microsoft Excel (.xlsx) |
-| Supported OS | Windows 10/11 (installer), Linux, macOS |
+| Supported OS | Windows 10/11 (primary), Linux, macOS |
 
 ---
 

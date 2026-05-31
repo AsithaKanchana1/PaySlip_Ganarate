@@ -200,6 +200,26 @@ Generating pay slips …
 
 ---
 
+### Section 5 — About & Developer Details
+
+```
+👤 About & Developer Details
+───────────────────────────────────────────
+Pay Slip Generator is a Windows-friendly desktop app for generating
+printer-ready PDF pay slips.
+
+Developer: Asitha Kanchana
+GitHub:    https://github.com/AsithaKanchana1
+Supported: Windows 10/11, Linux, macOS
+```
+
+- Shows the app purpose in one place
+- Lists the developer name and GitHub profile
+- The GitHub row is clickable inside the app
+- The credit bar at the bottom repeats the same developer identity
+
+---
+
 ## Settings Persistence
 
 The app automatically saves and restores these settings between sessions:

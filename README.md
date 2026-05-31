@@ -2,6 +2,7 @@
 
 > Automatically generates printer-ready PDF pay slips for all employees from a single Excel data file.
 > Available as a **click-and-use desktop app** for Windows — no technical knowledge needed.
+> Linux and macOS are supported for developers.
 
 ---
 
@@ -59,6 +60,17 @@ python app.py          # Opens the graphical desktop app
 │  [ 📄  Open PDF                                  ]  │
 └─────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 👤 About & Developer Details
+
+The desktop app includes an About panel with the following details:
+
+- Developer: Asitha Kanchana
+- GitHub: https://github.com/AsithaKanchana1
+- Primary target: Windows 10/11
+- Secondary support: Linux and macOS for development and testing
 
 ---
 
