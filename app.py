@@ -308,11 +308,64 @@ class PaySlipApp(ctk.CTk):
             dev_label.configure(text_color=("#4a6fa5", "#5b82c0"))
 
         def _open_github(e):
-            webbrowser.open("https://github.com/AsithaKanchana1")
+            self._show_developer_details()
 
         dev_label.bind("<Enter>",    _on_enter)
         dev_label.bind("<Leave>",    _on_leave)
         dev_label.bind("<Button-1>", _open_github)
+
+    def _show_developer_details(self):
+        """Show a small modal with developer social links."""
+        links = [
+            ("Website", "https://asitha.site"),
+            ("YouTube", "https://youtube.com/@asi_solution"),
+            ("LinkedIn", "https://linkedin.com/in/asitha-kanchana-35aa531a8/"),
+            ("Facebook", "https://facebook.com/asithakanchana01"),
+            ("Instagram", "https://instagram.com/asithakanchana01"),
+            ("Stack Overflow", "https://stackoverflow.com/users/18616349/asitha-kanchana"),
+            ("WhatsApp", "https://wa.me/94701336364"),
+            ("Buy Me a Coffee", "https://buymeacoffee.com/asitha"),
+            ("GitHub", "https://github.com/AsithaKanchana1"),
+            ("GitLab", "https://gitlab.com/"),
+            ("ORCID", "https://orcid.org/0009-0003-2200-4467"),
+        ]
+
+        try:
+            dlg = ctk.CTkToplevel(self)
+        except Exception:
+            # Fallback if CTkToplevel is not available
+            from tkinter import Toplevel
+            dlg = Toplevel(self)
+
+        dlg.title("Developer — Asitha Kanchana")
+        dlg.geometry("520x420")
+        dlg.resizable(False, False)
+        dlg.transient(self)
+        try:
+            dlg.grab_set()
+        except Exception:
+            pass
+
+        body = ctk.CTkFrame(dlg, fg_color="transparent")
+        body.pack(fill="both", expand=True, padx=16, pady=12)
+
+        ctk.CTkLabel(body, text="Developer & Social Links",
+                     font=ctk.CTkFont(size=16, weight="bold"),
+                     text_color="#93c5fd").pack(anchor="w", pady=(2, 12))
+
+        for label, url in links:
+            lbl = ctk.CTkLabel(body, text=f"{label}: {url}", anchor="w",
+                               cursor="hand2", wraplength=480,
+                               text_color="#cbd5e1")
+            lbl.pack(fill="x", pady=6)
+
+            def _open(u=url):
+                webbrowser.open(u)
+
+            lbl.bind("<Button-1>", lambda e, u=url: _open(u))
+
+        ctk.CTkButton(body, text="Close", width=120,
+                      command=lambda: dlg.destroy()).pack(pady=14)
 
     def _card(self, parent, title: str):
         """Draw a section header."""
