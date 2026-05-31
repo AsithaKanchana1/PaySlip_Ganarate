@@ -32,7 +32,6 @@ OutputDir=Output
 OutputBaseFilename=PaySlipGenerator_Setup_v{#AppVersion}
 #if FileExists("icon.ico")
 SetupIconFile=icon.ico
-WizardSmallImageFile=icon.ico
 #endif
 Compression=lzma
 SolidCompression=yes
