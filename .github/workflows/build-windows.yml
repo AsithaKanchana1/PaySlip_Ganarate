@@ -5,6 +5,10 @@ on:
     branches: [ main ]
   workflow_dispatch:        # allow manual trigger from GitHub UI
 
+# ── Permissions needed to create releases ─────────────────────────────────────
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     name: Build & Package (Windows)
@@ -54,7 +58,7 @@ jobs:
           if (Test-Path "icon.ico") {
             Copy-Item "icon.ico" "dist\PaySlipGenerator\icon.ico"
           }
-          Write-Host "Place your Slary_Slips.xlsx here" `
+          "Place your Slary_Slips.xlsx here" `
             | Out-File "dist\PaySlipGenerator\Excel\PUT_EXCEL_FILE_HERE.txt"
 
       # ── 6. Build the Inno Setup installer (.exe) ─────────────────────────────
@@ -82,38 +86,49 @@ jobs:
           path: Output\PaySlipGenerator_Setup_v*.exe
           retention-days: 90
 
-      # ── 9. Create GitHub Release with installer attached ─────────────────────
+      # ── 9. Create GitHub Release using GitHub CLI ────────────────────────────
       - name: Get short SHA for release tag
         id: sha
         shell: pwsh
-        run: echo "short=$('${{ github.sha }}'.Substring(0,7))" >> $env:GITHUB_OUTPUT
+        run: |
+          $short = "${{ github.sha }}".Substring(0, 7)
+          echo "short=$short" >> $env:GITHUB_OUTPUT
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: build-${{ steps.sha.outputs.short }}
-          name: "Pay Slip Generator — Build ${{ steps.sha.outputs.short }}"
-          body: |
-            ## 🏗️ Auto-built from commit `${{ github.sha }}`
-
-            ### 📥 Download Options
-
-            | File | Description |
-            |------|-------------|
-            | `PaySlipGenerator_Setup_v*.exe` | **Recommended** — Windows installer with Start Menu shortcut |
-            | `PaySlipGenerator-Windows-Portable.zip` | Portable — run without installing |
-
-            ### 🚀 How to Install
-            1. Download `PaySlipGenerator_Setup_v*.exe`
-            2. Run it and follow the wizard
-            3. Open **Pay Slip Generator** from Start Menu
-            4. Copy your `Slary_Slips.xlsx` into the `Excel\` folder
-
-            ---
-            *Built automatically by GitHub Actions on Windows*
-          files: |
-            Output/PaySlipGenerator_Setup_v*.exe
-          draft: false
-          prerelease: false
+      - name: Create GitHub Release with installer
+        shell: pwsh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag     = "build-${{ steps.sha.outputs.short }}"
+          $title   = "Pay Slip Generator - Build ${{ steps.sha.outputs.short }}"
+          $notes   = @"
+          ## Auto-built from commit ``${{ github.sha }}``
+
+          ### Download Options
+
+          | File | Description |
+          |------|-------------|
+          | ``PaySlipGenerator_Setup_v1.0.exe`` | **Recommended** - Windows installer with Start Menu shortcut |
+          | Portable zip (from Artifacts tab) | Run without installing |
+
+          ### How to Install
+          1. Download ``PaySlipGenerator_Setup_v1.0.exe`` below
+          2. Run it and follow the wizard
+          3. Open **Pay Slip Generator** from Start Menu
+          4. Copy your ``Slary_Slips.xlsx`` into the ``Excel\`` folder shown after install
+          5. Browse, pick month, click Generate!
+
+          ---
+          Built automatically by GitHub Actions on Windows
+          Developer: Asitha Kanchana - https://github.com/AsithaKanchana1
+          "@
+
+          # Delete existing tag if it exists (re-run protection)
+          gh release delete $tag --yes 2>$null
+          git push --delete origin $tag 2>$null
+
+          # Create the release and upload the installer
+          gh release create $tag `
+            --title $title `
+            --notes $notes `
+            Output\PaySlipGenerator_Setup_v*.exe
