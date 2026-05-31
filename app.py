@@ -13,6 +13,7 @@ import subprocess
 import sys
 import os
 import json
+import webbrowser
 from datetime import datetime
 
 # Import our core generation module
@@ -75,8 +76,8 @@ class PaySlipApp(ctk.CTk):
         now = datetime.now()
 
         self.title("Pay Slip Generator — New Lanka Clothing")
-        self.geometry("680x780")
-        self.minsize(600, 700)
+        self.geometry("680x800")
+        self.minsize(600, 720)
         self.resizable(True, True)
 
         # App icon (if available)
@@ -92,6 +93,7 @@ class PaySlipApp(ctk.CTk):
         self._last_output = ""
 
         self._build_ui(now)
+        self._build_developer_footer()
         self._load_saved_settings()
 
     # ── UI Builder ────────────────────────────────────────────────────────────
@@ -267,6 +269,50 @@ class PaySlipApp(ctk.CTk):
             state="disabled",
         )
         self.open_pdf_btn.pack(fill="x", padx=4, pady=(0, 20))
+
+    # ── Developer footer ──────────────────────────────────────────────────────
+
+    def _build_developer_footer(self):
+        """Pinned footer bar — always visible at the very bottom of the window."""
+        footer = ctk.CTkFrame(
+            self,
+            fg_color=("#0d1220", "#080e1a"),
+            corner_radius=0,
+            height=32,
+        )
+        footer.pack(fill="x", side="bottom", padx=0, pady=0)
+        footer.pack_propagate(False)   # keep fixed height
+
+        # Thin separator line at the top of the footer
+        ctk.CTkFrame(
+            footer, height=1,
+            fg_color=("#1e3a8a", "#1e2d5a"),
+            corner_radius=0,
+        ).pack(fill="x", padx=0, pady=0)
+
+        # Clickable developer credit label
+        dev_label = ctk.CTkLabel(
+            footer,
+            text="Asitha  ❤️  Kanchana",
+            font=ctk.CTkFont(family="Helvetica", size=11),
+            text_color=("#4a6fa5", "#5b82c0"),
+            cursor="hand2",
+        )
+        dev_label.pack(expand=True)
+
+        # Hover effect — brighten on mouse-over
+        def _on_enter(e):
+            dev_label.configure(text_color=("#93c5fd", "#93c5fd"))
+
+        def _on_leave(e):
+            dev_label.configure(text_color=("#4a6fa5", "#5b82c0"))
+
+        def _open_github(e):
+            webbrowser.open("https://github.com/AsithaKanchana1")
+
+        dev_label.bind("<Enter>",    _on_enter)
+        dev_label.bind("<Leave>",    _on_leave)
+        dev_label.bind("<Button-1>", _open_github)
 
     def _card(self, parent, title: str):
         """Draw a section header."""
