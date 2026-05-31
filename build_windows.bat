@@ -5,6 +5,7 @@
 ::  Requirements: Python 3.10+ installed on Windows
 :: ============================================================
 title Building Pay Slip Generator...
+setlocal EnableDelayedExpansion
 
 echo.
 echo  =====================================================
@@ -31,6 +32,16 @@ echo.
 
 :: Step 3 — Build the exe with PyInstaller
 echo [3/4] Building standalone .exe (this takes 1-2 minutes)...
+
+:: Check if icon.ico exists — make it optional
+set ICON_FLAG=
+if exist icon.ico (
+    set ICON_FLAG=--icon "icon.ico"
+    echo        Found icon.ico — will use custom icon.
+) else (
+    echo        icon.ico not found — building without custom icon.
+)
+
 pyinstaller ^
     --noconfirm ^
     --onedir ^
@@ -42,7 +53,8 @@ pyinstaller ^
     --hidden-import reportlab ^
     --hidden-import PIL ^
     --collect-all customtkinter ^
-    --icon "icon.ico" ^
+    --collect-data customtkinter ^
+    %ICON_FLAG% ^
     app.py
 
 if %errorlevel% neq 0 (

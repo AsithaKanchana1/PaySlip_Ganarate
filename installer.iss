@@ -30,11 +30,13 @@ AllowNoIcons=yes
 LicenseFile=
 OutputDir=Output
 OutputBaseFilename=PaySlipGenerator_Setup_v{#AppVersion}
+#if FileExists("icon.ico")
 SetupIconFile=icon.ico
+WizardSmallImageFile=icon.ico
+#endif
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-WizardSmallImageFile=icon.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
