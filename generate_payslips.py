@@ -5,6 +5,9 @@ generate_payslips.py  —  New Lanka Clothing · Pay Slip Generator
 Standalone Python script — no GUI, no extra modules needed beyond
 openpyxl and reportlab.
 
+Developer: Asitha ❤️ Kanchana
+GitHub   : https://github.com/AsithaKanchana1
+
 USAGE
 -----
 1. Edit the ── Settings ── section below (company name, pay period, file paths)
@@ -386,10 +389,14 @@ def main():
     print("\n🖨️  Generating PDF …")
     generate_pdf(employees, output_path)
 
-    print("\n━" * 52)
+    print("\n" + "─" * 52)
     print(f"  Done!  {len(employees)} pay slips generated.")
     print(f"  Open {OUTPUT_PDF} and print on A4 at 100% scale.")
-    print("━" * 52)
+    print("─" * 52)
+    print()
+    print("  Asitha  ❤️  Kanchana")
+    print("  🔗  github.com/AsithaKanchana1")
+    print()
 
 
 if __name__ == "__main__":
