@@ -171,10 +171,14 @@ def draw_payslip(c: canvas.Canvas, x: float, y: float,
         ("E.T.F. 3%",        "",                                   _fmt(_g(row, COL_ETF3)),         "epf"),
     ]
 
-    ROW_H    = 0.302 * cm
     BODY_TOP = y + H - hdr_h
+    BODY_H   = BODY_TOP - y
+    ROW_H    = BODY_H / len(data_rows)
     COL1_W   = 2.30 * cm
     COL2_W   = 0.68 * cm
+    LABEL_X  = x + 0.12 * cm
+    UNITS_X  = x + COL1_W + COL2_W / 2
+    AMT_X    = x + W - 0.10 * cm
 
     c.setStrokeColor(C_BORDER)
     c.setLineWidth(0.35)
@@ -196,28 +200,30 @@ def draw_payslip(c: canvas.Canvas, x: float, y: float,
             c.rect(x + 0.05, ry + 0.05, W - 0.1, ROW_H - 0.05, stroke=0, fill=1)
         elif i % 2 == 0:
             c.setFillColor(C_ROW_ALT)
-            c.rect(x + 0.05, ry + 0.05, W - 0.1, ROW_H - 0.05, stroke=0, fill=1)
+            c.rect(x + 0.05, ry + 0.03, W - 0.1, ROW_H - 0.03, stroke=0, fill=1)
 
         c.setStrokeColor(C_BORDER_LITE)
         c.setLineWidth(0.18)
         c.line(x, ry, x + W, ry)
 
-        ty   = ry + 0.065 * cm
+        ty   = ry + (ROW_H * 0.22)
         bold  = style in ("gross", "total_d", "net")
         small = style == "epf"
+        label_size = 5.4 if small else 6.2 if bold else 5.7
+        amount_size = 5.4 if small else 6.2 if bold else 5.7
 
-        c.setFont("Helvetica-Bold" if bold else "Helvetica", 4.5 if small else 4.9)
+        c.setFont("Helvetica-Bold" if bold else "Helvetica", label_size)
         c.setFillColor(C_MUTED if small else C_ACCENT if bold else C_TEXT)
-        c.drawString(x + 0.12 * cm, ty, label)
+        c.drawString(LABEL_X, ty, label)
 
         if units:
-            c.setFont("Helvetica", 4.4)
+            c.setFont("Helvetica", 5.0 if small else 5.2)
             c.setFillColor(C_MUTED)
-            c.drawCentredString(x + COL1_W + COL2_W / 2, ty, units)
+            c.drawCentredString(UNITS_X, ty, units)
 
-        c.setFont("Helvetica-Bold" if bold else "Helvetica", 4.5 if small else 4.9)
+        c.setFont("Helvetica-Bold" if bold else "Helvetica", amount_size)
         c.setFillColor(C_MUTED if small else C_ACCENT if bold else C_TEXT)
-        c.drawRightString(x + W - 0.10 * cm, ty, amount)
+        c.drawRightString(AMT_X, ty, amount)
 
     body_bottom = BODY_TOP - len(data_rows) * ROW_H
     c.setStrokeColor(C_BORDER_LITE)
