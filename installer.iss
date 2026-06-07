@@ -52,8 +52,8 @@ Name: "startmenuicon";  Description: "Create a &Start Menu shortcut";        Gro
 ; Main application files from PyInstaller output
 Source: "dist\PaySlipGenerator\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; Create the Excel folder inside the install directory
-Source: "Excel\.gitkeep"; DestDir: "{app}\Excel"; Flags: ignoreversion
+; Create the Excel folder inside the install directory (populated at runtime by user)
+; Source: "Excel\*.xlsx"  — NOT included; salary files are private and git-ignored
 
 ; README
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion

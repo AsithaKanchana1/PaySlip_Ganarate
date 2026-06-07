@@ -69,7 +69,7 @@ echo [4/4] Packaging...
 copy README.md dist\PaySlipGenerator\README.md >nul 2>&1
 :: Create an Excel subfolder so users know where to put their file
 mkdir dist\PaySlipGenerator\Excel >nul 2>&1
-copy Excel\.gitkeep dist\PaySlipGenerator\Excel\.gitkeep >nul 2>&1
+echo Place your salary Excel file here. > dist\PaySlipGenerator\Excel\PUT_EXCEL_FILE_HERE.txt
 
 echo.
 echo  =====================================================

@@ -61,6 +61,25 @@ Result: **27 passed in 0.68s** (Python 3.14.5, pytest 9.0.3)
 
 Result: **27 passed in 8.54s** (Python 3.14.5, pytest 9.0.3)
 
+---
+
+#### ✅ Session 3 — 2026-06-07 (Antigravity / Claude Sonnet)
+
+**Task: Fix GitHub Actions not generating the Windows EXE**
+
+**Root cause:** `.github/workflows/build-windows.yml` contained **two full workflow definitions concatenated into one file** — GitHub Actions rejects this as invalid YAML and never runs the build.
+
+**Additional bugs found:**
+- `installer.iss` referenced `Excel\.gitkeep` which is gitignored → Inno Setup would fail with "file not found"
+- `build_windows.bat` also tried to `copy Excel\.gitkeep` → silent failure on CI
+- `msoffcrypto-tool` and `xlrd` were missing from the CI pip install command
+
+| File | Action | Description |
+|------|--------|-------------|
+| `.github/workflows/build-windows.yml` | REWRITE | Single clean workflow (was two workflows concatenated); added `msoffcrypto-tool`/`xlrd` to install; fixed PowerShell release step to reliably glob the output exe |
+| `installer.iss` | MODIFIED | Removed `Excel\.gitkeep` source reference; Excel dir still created via `[Dirs]` section |
+| `build_windows.bat` | MODIFIED | Replaced `copy Excel\.gitkeep` with creating a `PUT_EXCEL_FILE_HERE.txt` placeholder |
+
 - `TestReadEmployees` (9 tests) — Excel parsing, column mapping, error handling
 - `TestGeneratePdf` (9 tests) — PDF generation: file creation, employee count, PDF magic bytes, callbacks
 
