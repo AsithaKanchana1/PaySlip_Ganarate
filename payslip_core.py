@@ -247,29 +247,67 @@ def read_employees(excel_path: str) -> list:
         mapped_cols[COL_EMP_NO] = 0
 
     # ── Department-header detection ────────────────────────────────────────────
-    # The real salary sheet embeds department names as section-header rows.
-    # A header row has ONLY the Name cell (col_idx for COL_NAME) filled in —
-    # the employee-number and EPF-number columns are both empty.
-    # We detect these rows, remember the current department, and inject it into
-    # COL_DEPARTMENT for every ordinary employee row that follows.
+    # The salary sheet embeds department names as section-header rows where
+    # ONLY the Name cell is manually entered — the sequential employee-number
+    # ("No:") and EPF-number columns are always blank on these rows.
+    #
+    # Formula-proof design:
+    #   Old approach (fragile): count non-None cells == 1
+    #     → breaks when formula cells cache as 0 instead of None
+    #   New approach (robust): check the TWO manually-entered identity columns
+    #     (EPF No and sequential No) — these are NEVER formula-driven and will
+    #     always be None on a department-header row, regardless of whether
+    #     other columns contain formula-cached values like 0.
 
     name_col_idx   = mapped_cols.get(COL_NAME,   None)
     emp_no_col_idx = mapped_cols.get(COL_EMP_NO, None)
 
+    # Also find the raw sheet column index for the sequential "No:" column.
+    # This is distinct from the EPF column and is a plain integer in real data.
+    # Heuristic: scan the header row for "no" / "no:" at a low column index.
+    _seq_no_col_idx = None
+    for _hdr_idx, _hdr_val in enumerate(header_row):
+        _nh = re.sub(r"[^a-z0-9]+", "", str(_hdr_val).lower())
+        if _nh in ("no", "no:", "empno", "slno", "sno") and _hdr_idx < 5:
+            _seq_no_col_idx = _hdr_idx
+            break
+    # Fall back to emp_no_col_idx if no separate seq-no column found
+    if _seq_no_col_idx is None:
+        _seq_no_col_idx = emp_no_col_idx
+
     def _is_dept_header(raw_row: list) -> str | None:
-        """Return department string if raw_row is a section-header row, else None."""
+        """
+        Return the department name if this raw row is a section-header row.
+
+        A department-header row has:
+          • A non-empty Name cell
+          • An empty sequential employee-number column  ← manually entered, never formula
+          • An empty EPF-number column                  ← manually entered, never formula
+
+        This check survives formula cells returning 0 or any cached value in other
+        columns, because EPF and employee-number are always hand-typed, never computed.
+        """
         if name_col_idx is None:
             return None
+
+        # Must have a non-empty name
         name_val = raw_row[name_col_idx] if name_col_idx < len(raw_row) else None
         if not name_val or not str(name_val).strip():
             return None
-        # Count how many cells are non-empty in the whole row
-        filled = [v for v in raw_row if v is not None and str(v).strip() != ""]
-        # A department header has only 1 filled cell (the name) and no employee number
-        emp_no_val = raw_row[emp_no_col_idx] if (emp_no_col_idx is not None and emp_no_col_idx < len(raw_row)) else None
-        if len(filled) == 1 and (emp_no_val is None or str(emp_no_val).strip() == ""):
-            return str(name_val).strip()
-        return None
+
+        # Sequential employee number must be blank (manually entered → None on dept rows)
+        seq_no = raw_row[_seq_no_col_idx] if (_seq_no_col_idx is not None and _seq_no_col_idx < len(raw_row)) else None
+        if seq_no is not None and str(seq_no).strip() not in ("", "0"):
+            return None   # real employee row — has a sequence number
+
+        # EPF number must also be blank
+        epf_col = 0  # EPF NO is always the first column in this sheet layout
+        epf_val = raw_row[epf_col] if epf_col < len(raw_row) else None
+        if epf_val is not None and str(epf_val).strip() not in ("", "0"):
+            return None   # real employee row — has an EPF number
+
+        return str(name_val).strip()
+
 
     max_cols        = max(COL_ETF3, COL_NET_SALARY) + 1
     current_dept    = ""   # tracks the most-recently-seen department header
@@ -285,15 +323,11 @@ def read_employees(excel_path: str) -> list:
             current_dept = dept_label
             continue          # don't add this row as an employee
 
-        # ── Skip completely empty rows ─────────────────────────────────────────
-        if all(v is None or str(v).strip() == "" for v in row):
-            continue
-
-        # ── Skip rows with no employee number and no name ──────────────────────
-        emp_no_val = row[emp_no_col_idx] if (emp_no_col_idx is not None and emp_no_col_idx < len(row)) else None
-        name_val   = row[name_col_idx]   if (name_col_idx   is not None and name_col_idx   < len(row)) else None
-        if (emp_no_val is None or str(emp_no_val).strip() == "") and \
-           (name_val   is None or str(name_val).strip()   == ""):
+        # ── Skip any row where the Name column is empty ────────────────────────
+        # This catches: blank spacer rows, summary/total rows, formula-only rows,
+        # and any other non-employee row that has no name to print on the payslip.
+        name_val = row[name_col_idx] if (name_col_idx is not None and name_col_idx < len(row)) else None
+        if not name_val or not str(name_val).strip():
             continue
 
         # ── Build the normalised row ───────────────────────────────────────────
