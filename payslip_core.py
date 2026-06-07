@@ -52,15 +52,20 @@ COL_NET_SALARY    = 25
 COL_EPF12         = 26
 COL_ETF3          = 27
 
-# ─── Slip dimensions ──────────────────────────────────────────────────────────
-SLIP_WIDTH  = 5.0 * cm
-SLIP_HEIGHT = 12.0 * cm
-GAP         = 2 * mm
+# ─── Page layout constants ────────────────────────────────────────────────────
+# 4 slips per page (2 columns × 2 rows), each slip sized to fill A4.
+# PAGE_MARGIN: small safe-area margin for printers (all four sides).
+# GAP:         gap between adjacent slips (horizontal and vertical).
+COLS_PER_PAGE = 2
+ROWS_PER_PAGE = 2
+PAGE_MARGIN   = 5  * mm   # 5 mm on all sides
+GAP           = 2  * mm   # 2 mm between slips
 
-MARGIN_LEFT   = 0.7 * cm
-MARGIN_RIGHT  = 0.7 * cm
-MARGIN_TOP    = 0.7 * cm
-MARGIN_BOTTOM = 0.7 * cm
+# Slip dimensions — computed from A4 minus margins and gaps so the slips
+# fill the page exactly. Result ≈ 99 mm × 142.5 mm per slip.
+_A4_W, _A4_H  = A4
+SLIP_WIDTH  = (_A4_W - 2 * PAGE_MARGIN - (COLS_PER_PAGE - 1) * GAP) / COLS_PER_PAGE
+SLIP_HEIGHT = (_A4_H - 2 * PAGE_MARGIN - (ROWS_PER_PAGE - 1) * GAP) / ROWS_PER_PAGE
 
 # ─── Colours ──────────────────────────────────────────────────────────────────
 C_HDR_BG      = colors.HexColor("#1a2744")
@@ -374,127 +379,164 @@ def _fmt_units(val) -> str:
 
 # ─── Draw one pay slip ────────────────────────────────────────────────────────
 
-def draw_payslip(c: canvas.Canvas, x: float, y: float,
+def draw_payslip(c: canvas.Canvas, x: float, y: float, w: float, h: float,
                  row: list, company_name: str, pay_period: str):
-    W = SLIP_WIDTH
-    H = SLIP_HEIGHT
+    """Draw one payslip with its top-left at (x, y+h) in PDF coordinates.
 
-    # Outer border
+    All sizes are derived proportionally from w and h so the slip fills
+    whatever rectangle it is given, regardless of page layout.
+    """
+    W, H = w, h
+
+    # ── Scale factors (vs. original reference slip: 5 cm × 12 cm) ────────────
+    ws = W / (5.0 * cm)   # width scale  ≈ 1.98 for new 2-column layout
+    hs = H / (12.0 * cm)  # height scale ≈ 1.19 for new 2-row layout
+
+    # ── Font sizes — scaled then clamped to sensible bounds ──────────────────
+    F_COMPANY = max(8,  min(14, round(7.5  * ws)))
+    F_SUBTITLE= max(7,  min(11, round(6.0  * ws)))
+    F_EMP_NO  = max(6,  min(10, round(5.2  * ws)))
+    F_NAME    = max(7,  min(11, round(5.5  * ws)))
+    F_DEPT    = max(5,  min( 9, round(4.8  * ws)))
+    F_NORMAL  = max(6,  min(10, round(5.7  * ws)))
+    F_BOLD    = max(7,  min(11, round(6.2  * ws)))
+    F_SMALL   = max(5,  min( 9, round(5.4  * ws)))
+    F_UNITS   = max(5,  min( 9, round(5.2  * ws)))
+
+    # ── Outer border ─────────────────────────────────────────────────────────
     c.setStrokeColor(C_BORDER)
     c.setLineWidth(0.7)
     c.rect(x, y, W, H, stroke=1, fill=0)
 
-    # Header block
-    hdr_h = 1.62 * cm
+    # ── Header block (13.5 % of slip height) ─────────────────────────────────
+    hdr_h   = H * 0.135
+    pad_x   = W * 0.02          # small horizontal inset inside header
+    pad_top = hdr_h * 0.04     # top padding inside header
+
     c.setFillColor(C_HDR_BG)
     c.rect(x, y + H - hdr_h, W, hdr_h, stroke=0, fill=1)
 
+    # Distribute 6 header items evenly across hdr_h
+    # positions as fractions of hdr_h from the top
+    fracs = [0.16, 0.33, 0.49, 0.64, 0.79, 0.95]
+    tops  = [y + H - hdr_h * f for f in fracs]
+
     c.setFillColor(C_HDR_TEXT)
-    c.setFont("Helvetica-Bold", 7.5)
-    c.drawCentredString(x + W / 2, y + H - 0.38 * cm, company_name)
 
-    c.setFont("Helvetica-Bold", 6)
-    c.drawCentredString(x + W / 2, y + H - 0.64 * cm, "Pay Sheet")
-    c.drawCentredString(x + W / 2, y + H - 0.88 * cm, pay_period)
+    c.setFont("Helvetica-Bold", F_COMPANY)
+    c.drawCentredString(x + W / 2, tops[0], company_name)
 
-    c.setFont("Helvetica", 5.2)
+    c.setFont("Helvetica-Bold", F_SUBTITLE)
+    c.drawCentredString(x + W / 2, tops[1], "Pay Sheet")
+    c.drawCentredString(x + W / 2, tops[2], pay_period)
+
+    c.setFont("Helvetica", F_EMP_NO)
     emp_no = _g(row, COL_EMP_NO)
     emp_no_str = str(int(emp_no)) if emp_no else "-"
-    c.drawString(x + 0.12 * cm, y + H - 1.13 * cm, f"Emp No   {emp_no_str}")
+    c.drawString(x + pad_x, tops[3], f"Emp No: {emp_no_str}")
 
-    c.setFont("Helvetica-Bold", 5.5)
+    c.setFont("Helvetica-Bold", F_NAME)
     name = _g(row, COL_NAME) or ""
-    c.drawCentredString(x + W / 2, y + H - 1.38 * cm, name)
+    c.drawCentredString(x + W / 2, tops[4], name)
 
-    c.setFont("Helvetica", 4.8)
+    c.setFont("Helvetica", F_DEPT)
     dept  = _g(row, COL_DEPARTMENT)  or ""
     desig = _g(row, COL_DESIGNATION) or ""
-    c.drawString(x + 0.10 * cm, y + H - 1.58 * cm, f"Dept-{dept}   Desig-{desig}")
+    dept_str = f"Dept: {dept}" + (f"   {desig}" if desig else "")
+    c.drawString(x + pad_x, tops[5], dept_str)
 
-    # Body rows
+    # ── Body data rows ────────────────────────────────────────────────────────
     data_rows = [
-        ("Basic",            "",                                   _fmt(_g(row, COL_BASIC)),        "earn"),
-        ("Allowance",        "",                                   _fmt(_g(row, COL_ALLOWANCE)),    "earn"),
-        ("Attendance Bonus", "",                                   _fmt(_g(row, COL_ATT_BONUS)),    "earn"),
-        ("Fixed Allowance",  "",                                   _fmt(_g(row, COL_FIXED_ALLOW)),  "earn"),
-        ("Incentive",        "",                                   _fmt(_g(row, COL_INCENTIVE)),    "earn"),
-        ("Normal OT",        _fmt_units(_g(row, COL_NORMAL_OT)),  _fmt(_g(row, COL_NORMAL_OT_AMT)),"earn"),
-        ("Double OT",        _fmt_units(_g(row, COL_DOUBLE_OT)),  _fmt(_g(row, COL_DOUBLE_OT_AMT)),"earn"),
-        ("Incentive",        "",                                   _fmt(_g(row, COL_INCENTIVE2)),   "earn"),
-        ("Gross Salary",     "",                                   _fmt(_g(row, COL_GROSS)),        "gross"),
-        ("Salary Advance",   "",                                   _fmt(_g(row, COL_SAL_ADV)),      "deduct"),
-        ("No Pay",           _fmt_units(_g(row, COL_NO_PAY)),     _fmt(_g(row, COL_NO_PAY_AMT)),   "deduct"),
-        ("Attendance Bonus", "",                                   _fmt(_g(row, COL_ATT_BON_DED)),  "deduct"),
-        ("Allowance",        "",                                   _fmt(_g(row, COL_ALLOW_DED)),    "deduct"),
-        ("E.P.F 8%",         "",                                   _fmt(_g(row, COL_EPF8)),         "deduct"),
-        ("Late",             _fmt_units(_g(row, COL_LATE)),       _fmt(_g(row, COL_LATE_DED)),     "deduct"),
-        ("Welfare",          "",                                   _fmt(_g(row, COL_WELFARE)),      "deduct"),
-        ("Total Deduction",  "",                                   _fmt(_g(row, COL_TOTAL_DED)),    "total_d"),
-        ("Net Salary",       "",                                   _fmt(_g(row, COL_NET_SALARY)),   "net"),
-        ("E.P.F. 12%",       "",                                   _fmt(_g(row, COL_EPF12)),        "epf"),
-        ("E.T.F. 3%",        "",                                   _fmt(_g(row, COL_ETF3)),         "epf"),
+        ("Basic",            "",                                    _fmt(_g(row, COL_BASIC)),        "earn"),
+        ("Allowance",        "",                                    _fmt(_g(row, COL_ALLOWANCE)),    "earn"),
+        ("Attendance Bonus", "",                                    _fmt(_g(row, COL_ATT_BONUS)),    "earn"),
+        ("Fixed Allowance",  "",                                    _fmt(_g(row, COL_FIXED_ALLOW)),  "earn"),
+        ("Incentive",        "",                                    _fmt(_g(row, COL_INCENTIVE)),    "earn"),
+        ("Normal OT",        _fmt_units(_g(row, COL_NORMAL_OT)),   _fmt(_g(row, COL_NORMAL_OT_AMT)),"earn"),
+        ("Double OT",        _fmt_units(_g(row, COL_DOUBLE_OT)),   _fmt(_g(row, COL_DOUBLE_OT_AMT)),"earn"),
+        ("Incentive",        "",                                    _fmt(_g(row, COL_INCENTIVE2)),   "earn"),
+        ("Gross Salary",     "",                                    _fmt(_g(row, COL_GROSS)),        "gross"),
+        ("Salary Advance",   "",                                    _fmt(_g(row, COL_SAL_ADV)),      "deduct"),
+        ("No Pay",           _fmt_units(_g(row, COL_NO_PAY)),      _fmt(_g(row, COL_NO_PAY_AMT)),   "deduct"),
+        ("Att. Bonus Ded.",  "",                                    _fmt(_g(row, COL_ATT_BON_DED)),  "deduct"),
+        ("Allowance Ded.",   "",                                    _fmt(_g(row, COL_ALLOW_DED)),    "deduct"),
+        ("E.P.F 8%",         "",                                    _fmt(_g(row, COL_EPF8)),         "deduct"),
+        ("Late",             _fmt_units(_g(row, COL_LATE)),        _fmt(_g(row, COL_LATE_DED)),     "deduct"),
+        ("Welfare",          "",                                    _fmt(_g(row, COL_WELFARE)),      "deduct"),
+        ("Total Deduction",  "",                                    _fmt(_g(row, COL_TOTAL_DED)),    "total_d"),
+        ("Net Salary",       "",                                    _fmt(_g(row, COL_NET_SALARY)),   "net"),
+        ("E.P.F. 12%",       "",                                    _fmt(_g(row, COL_EPF12)),        "epf"),
+        ("E.T.F. 3%",        "",                                    _fmt(_g(row, COL_ETF3)),         "epf"),
     ]
 
     BODY_TOP = y + H - hdr_h
     BODY_H   = BODY_TOP - y
     ROW_H    = BODY_H / len(data_rows)
-    COL1_W   = 2.30 * cm
-    COL2_W   = 0.68 * cm
-    LABEL_X  = x + 0.12 * cm
-    UNITS_X  = x + COL1_W + COL2_W / 2
-    AMT_X    = x + W - 0.10 * cm
+
+    # Column widths — proportional to slip width
+    COL1_W  = W * 0.54    # label column
+    COL2_W  = W * 0.16    # units column
+    LABEL_X = x + W * 0.025
+    UNITS_X = x + COL1_W + COL2_W / 2
+    AMT_X   = x + W - W * 0.025
 
     c.setStrokeColor(C_BORDER)
-    c.setLineWidth(0.35)
+    c.setLineWidth(0.5)
     c.line(x, BODY_TOP, x + W, BODY_TOP)
 
     for i, (label, units, amount, style) in enumerate(data_rows):
         ry = BODY_TOP - (i + 1) * ROW_H
+
+        # Row background
         if style == "gross":
             c.setFillColor(C_GROSS_BG)
-            c.rect(x + 0.05, ry + 0.05, W - 0.1, ROW_H - 0.05, stroke=0, fill=1)
+            c.rect(x + 0.5, ry + 0.3, W - 1, ROW_H - 0.3, stroke=0, fill=1)
         elif style == "total_d":
             c.setFillColor(C_DED_BG)
-            c.rect(x + 0.05, ry + 0.05, W - 0.1, ROW_H - 0.05, stroke=0, fill=1)
+            c.rect(x + 0.5, ry + 0.3, W - 1, ROW_H - 0.3, stroke=0, fill=1)
         elif style == "net":
             c.setFillColor(C_NET_BG)
-            c.rect(x + 0.05, ry + 0.05, W - 0.1, ROW_H - 0.05, stroke=0, fill=1)
+            c.rect(x + 0.5, ry + 0.3, W - 1, ROW_H - 0.3, stroke=0, fill=1)
         elif style == "epf":
             c.setFillColor(C_EPF_BG)
-            c.rect(x + 0.05, ry + 0.05, W - 0.1, ROW_H - 0.05, stroke=0, fill=1)
+            c.rect(x + 0.5, ry + 0.3, W - 1, ROW_H - 0.3, stroke=0, fill=1)
         elif i % 2 == 0:
             c.setFillColor(C_ROW_ALT)
-            c.rect(x + 0.05, ry + 0.03, W - 0.1, ROW_H - 0.03, stroke=0, fill=1)
+            c.rect(x + 0.5, ry + 0.3, W - 1, ROW_H - 0.3, stroke=0, fill=1)
 
+        # Row divider
         c.setStrokeColor(C_BORDER_LITE)
-        c.setLineWidth(0.18)
+        c.setLineWidth(0.20)
         c.line(x, ry, x + W, ry)
 
-        ty   = ry + (ROW_H * 0.22)
+        # Text baseline — vertically centred in row
+        ty   = ry + ROW_H * 0.25
         bold  = style in ("gross", "total_d", "net")
         small = style == "epf"
-        label_size = 5.4 if small else 6.2 if bold else 5.7
-        amount_size = 5.4 if small else 6.2 if bold else 5.7
+        fs_label  = F_SMALL if small else F_BOLD   if bold else F_NORMAL
+        fs_amount = F_SMALL if small else F_BOLD   if bold else F_NORMAL
 
-        c.setFont("Helvetica-Bold" if bold else "Helvetica", label_size)
+        c.setFont("Helvetica-Bold" if bold else "Helvetica", fs_label)
         c.setFillColor(C_MUTED if small else C_ACCENT if bold else C_TEXT)
         c.drawString(LABEL_X, ty, label)
 
         if units:
-            c.setFont("Helvetica", 5.0 if small else 5.2)
+            c.setFont("Helvetica", F_UNITS if small else F_UNITS)
             c.setFillColor(C_MUTED)
             c.drawCentredString(UNITS_X, ty, units)
 
-        c.setFont("Helvetica-Bold" if bold else "Helvetica", amount_size)
+        c.setFont("Helvetica-Bold" if bold else "Helvetica", fs_amount)
         c.setFillColor(C_MUTED if small else C_ACCENT if bold else C_TEXT)
         c.drawRightString(AMT_X, ty, amount)
 
+    # Vertical column dividers
     body_bottom = BODY_TOP - len(data_rows) * ROW_H
     c.setStrokeColor(C_BORDER_LITE)
-    c.setLineWidth(0.20)
+    c.setLineWidth(0.22)
     c.line(x + COL1_W, body_bottom, x + COL1_W, BODY_TOP)
     c.line(x + COL1_W + COL2_W, body_bottom, x + COL1_W + COL2_W, BODY_TOP)
 
+    # Bottom border line
     c.setStrokeColor(C_BORDER)
     c.setLineWidth(0.7)
     c.line(x, y, x + W, y)
@@ -541,14 +583,13 @@ def generate_pdf(excel_path: str, output_path: str,
         progress(15)
 
         PAGE_W, PAGE_H = A4
-        usable_w = PAGE_W - MARGIN_LEFT - MARGIN_RIGHT
-        usable_h = PAGE_H - MARGIN_TOP  - MARGIN_BOTTOM
-        cols          = int((usable_w + GAP) / (SLIP_WIDTH + GAP))
-        rows_per_page = int((usable_h + GAP) / (SLIP_HEIGHT + GAP))
-        per_page      = cols * rows_per_page
+        cols          = COLS_PER_PAGE
+        rows_per_page = ROWS_PER_PAGE
+        per_page      = cols * rows_per_page          # always 4
         total_pages   = (len(employees) - 1) // per_page + 1
 
         log(f"📐  Layout: {cols} columns × {rows_per_page} rows = {per_page} slips/page")
+        log(f"📄  Slip size: {SLIP_WIDTH/mm:.1f} mm × {SLIP_HEIGHT/mm:.1f} mm")
         log(f"📄  Total pages: {total_pages}")
         log(f"🖨️  Generating PDF …")
         progress(20)
@@ -565,10 +606,10 @@ def generate_pdf(excel_path: str, output_path: str,
             col_idx = slot % cols
             row_idx = slot // cols
 
-            slip_x = MARGIN_LEFT + col_idx * (SLIP_WIDTH + GAP)
-            slip_y = PAGE_H - MARGIN_TOP - (row_idx + 1) * SLIP_HEIGHT - row_idx * GAP
+            slip_x = PAGE_MARGIN + col_idx * (SLIP_WIDTH  + GAP)
+            slip_y = PAGE_H - PAGE_MARGIN - (row_idx + 1) * SLIP_HEIGHT - row_idx * GAP
 
-            draw_payslip(c, slip_x, slip_y, row, company_name, pay_period)
+            draw_payslip(c, slip_x, slip_y, SLIP_WIDTH, SLIP_HEIGHT, row, company_name, pay_period)
 
             pct = 20 + int(((idx + 1) / len(employees)) * 75)
             progress(pct)
