@@ -246,18 +246,67 @@ def read_employees(excel_path: str) -> list:
     if COL_EMP_NO not in mapped_cols and len(header_row) > 0:
         mapped_cols[COL_EMP_NO] = 0
 
-    employees = []
+    # ── Department-header detection ────────────────────────────────────────────
+    # The real salary sheet embeds department names as section-header rows.
+    # A header row has ONLY the Name cell (col_idx for COL_NAME) filled in —
+    # the employee-number and EPF-number columns are both empty.
+    # We detect these rows, remember the current department, and inject it into
+    # COL_DEPARTMENT for every ordinary employee row that follows.
+
+    name_col_idx   = mapped_cols.get(COL_NAME,   None)
+    emp_no_col_idx = mapped_cols.get(COL_EMP_NO, None)
+
+    def _is_dept_header(raw_row: list) -> str | None:
+        """Return department string if raw_row is a section-header row, else None."""
+        if name_col_idx is None:
+            return None
+        name_val = raw_row[name_col_idx] if name_col_idx < len(raw_row) else None
+        if not name_val or not str(name_val).strip():
+            return None
+        # Count how many cells are non-empty in the whole row
+        filled = [v for v in raw_row if v is not None and str(v).strip() != ""]
+        # A department header has only 1 filled cell (the name) and no employee number
+        emp_no_val = raw_row[emp_no_col_idx] if (emp_no_col_idx is not None and emp_no_col_idx < len(raw_row)) else None
+        if len(filled) == 1 and (emp_no_val is None or str(emp_no_val).strip() == ""):
+            return str(name_val).strip()
+        return None
+
+    max_cols        = max(COL_ETF3, COL_NET_SALARY) + 1
+    current_dept    = ""   # tracks the most-recently-seen department header
+    employees       = []
+
     for row in rows[header_idx + 1:]:
-        # stop on long run of empty leading cell
-        if not row or row[0] is None or str(row[0]).strip() == "":
-            # skip empty rows
+        if not row:
             continue
-        # build normalized row with expected length
-        max_cols = max(COL_ETF3, COL_NET_SALARY) + 1
+
+        # ── Check whether this is a department-header row ──────────────────────
+        dept_label = _is_dept_header(row)
+        if dept_label is not None:
+            current_dept = dept_label
+            continue          # don't add this row as an employee
+
+        # ── Skip completely empty rows ─────────────────────────────────────────
+        if all(v is None or str(v).strip() == "" for v in row):
+            continue
+
+        # ── Skip rows with no employee number and no name ──────────────────────
+        emp_no_val = row[emp_no_col_idx] if (emp_no_col_idx is not None and emp_no_col_idx < len(row)) else None
+        name_val   = row[name_col_idx]   if (name_col_idx   is not None and name_col_idx   < len(row)) else None
+        if (emp_no_val is None or str(emp_no_val).strip() == "") and \
+           (name_val   is None or str(name_val).strip()   == ""):
+            continue
+
+        # ── Build the normalised row ───────────────────────────────────────────
         nrow = [None] * max_cols
         for target, col_idx in mapped_cols.items():
             if col_idx < len(row):
                 nrow[target] = row[col_idx]
+
+        # Inject department from the last seen section-header row
+        # Only overwrite if the sheet has no dedicated department column
+        if current_dept and (nrow[COL_DEPARTMENT] is None or str(nrow[COL_DEPARTMENT]).strip() == ""):
+            nrow[COL_DEPARTMENT] = current_dept
+
         employees.append(nrow)
 
     return employees
