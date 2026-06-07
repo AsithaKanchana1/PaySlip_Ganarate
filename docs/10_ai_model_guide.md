@@ -319,3 +319,39 @@ This handles: blank spacer rows, summary/totals rows, formula-only placeholder r
 4. When proposing changes, include: short summary, files changed, commands to run tests, rationale
 5. Keep changes minimal — maintain existing APIs and add tests for any behavioral change
 6. The Excel password is `1111` — never commit real Excel files (they are gitignored)
+
+---
+
+### ✅ Session 6 — 2026-06-07 (Antigravity / Claude Sonnet)
+
+**Task:** Change layout to 4 payslips per A4 page (2×2), fill the page fully, and increase font sizes to fit the larger slip
+
+**What was done:**
+
+**Layout:**
+- Changed from 3 cols × 2 rows (6 slips/page, with wasted space) → **2 cols × 2 rows (4 slips/page)**
+- Slip size: `50mm × 120mm` → **`99mm × 142.5mm`** (nearly 2× wider, 19% taller)
+- Removed hardcoded `MARGIN_LEFT/RIGHT/TOP/BOTTOM`; replaced with `PAGE_MARGIN = 5mm` (printer safe area) and `GAP = 2mm` (between slips)
+- `SLIP_WIDTH` and `SLIP_HEIGHT` are now **computed from A4** minus margins and gaps: `(A4 - 2×PAGE_MARGIN - 1×GAP) / 2` per axis
+
+**Fonts (proportional scaling):**
+- `draw_payslip` now accepts `w` and `h` parameters instead of reading globals
+- All font sizes computed via `scale = W / (5cm)`, clamped to sensible bounds
+- Fonts approximately doubled in size (e.g. body: 5.7pt → 10pt, company: 7.5pt → 14pt)
+- Column widths also proportional: label=54% of W, units=16% of W
+
+| Font | Old | New |
+|------|-----|-----|
+| Company name | 7.5pt | 14pt |
+| Pay Sheet / period | 6pt | 11pt |
+| Employee name | 5.5pt | 11pt |
+| Emp No / Dept | 5.2 / 4.8pt | 10 / 9pt |
+| Body normal | 5.7pt | 10pt |
+| Body bold (gross/net/total) | 6.2pt | 11pt |
+| Body small (EPF/ETF) | 5.4pt | 9pt |
+
+| File | Action |
+|------|--------|
+| `payslip_core.py` | MODIFIED — new layout constants, proportional `draw_payslip(w, h)`, updated `generate_pdf` positioning |
+
+**Test result:** `27 passed in 8.42s` · PDF: 198 employees, 50 pages, 203 KB
