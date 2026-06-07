@@ -7,3 +7,9 @@ openpyxl>=3.1.0         # Read Excel files
 reportlab>=4.0.0        # Generate PDF files
 pillow>=10.0.0          # Image support (required by customtkinter)
 pyinstaller>=6.0.0      # Build Windows .exe (only needed on the build machine)
+msoffcrypto-tool>=0.30.0  # Decrypt password-protected Excel files
+xlrd>=2.0.1              # Read legacy .xls Excel files
+
+# ── Development / testing ──────────────────────────────────────────────────────
+pytest>=7.0.0            # Test framework
+pytest-cov>=4.0.0        # Coverage reporting

@@ -12,6 +12,7 @@ For a graphical interface, run:
 
 import os
 import sys
+import getpass
 from payslip_core import generate_pdf
 
 # ─── Settings ─────────────────────────────────────────────────────────────────
@@ -36,8 +37,11 @@ if __name__ == "__main__":
         print(f"    Place your Excel file at: {excel_path}")
         sys.exit(1)
 
+    pwd = getpass.getpass("Excel password (leave blank if none): ")
+    ep = excel_path if not pwd else f"{excel_path}::{pwd}"
+
     result = generate_pdf(
-        excel_path   = excel_path,
+        excel_path   = ep,
         output_path  = output_path,
         company_name = COMPANY_NAME,
         pay_period   = PAY_PERIOD,

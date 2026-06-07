@@ -7,7 +7,7 @@ and click Generate. The PDF opens automatically when done.
 """
 
 import customtkinter as ctk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, simpledialog
 import threading
 import subprocess
 import sys
@@ -196,6 +196,27 @@ class PaySlipApp(ctk.CTk):
 
         self.excel_status = ctk.CTkLabel(body, text="", font=ctk.CTkFont(size=11))
         self.excel_status.pack(anchor="w", padx=4, pady=(2, 12))
+
+        # Inline password entry so GUI users can provide Excel password
+        pwd_row = ctk.CTkFrame(body, fg_color="transparent")
+        pwd_row.pack(fill="x", padx=4, pady=(0, 8))
+
+        ctk.CTkLabel(pwd_row, text="Excel Password", font=ctk.CTkFont(size=12),
+                     text_color="#94a3b8").pack(side="left", padx=(0, 8))
+
+        self.excel_pwd_var = ctk.StringVar(value="")
+        self.excel_pwd_entry = ctk.CTkEntry(
+            pwd_row,
+            textvariable=self.excel_pwd_var,
+            font=ctk.CTkFont(size=11), height=40,
+            placeholder_text="Optional — password to open the Excel file",
+            show="*",
+        )
+        self.excel_pwd_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
+
+        self.remember_pwd_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(pwd_row, text="Remember password",
+                        variable=self.remember_pwd_var).pack(side="right")
 
         # ── Card 3 — Output Location ──────────────────────────────────────────
         self._card(body, "📁  Output PDF Location")
@@ -391,15 +412,34 @@ class PaySlipApp(ctk.CTk):
             self._set_excel_path(s["excel_path"])
         if "output_path" in s:
             self.output_path_var.set(s["output_path"])
+        # Load saved password only if explicitly saved
+        if "excel_password" in s and s.get("remember_password"):
+            try:
+                self.excel_pwd_var.set(s.get("excel_password", ""))
+                self.remember_pwd_var.set(True)
+            except Exception:
+                pass
 
     def _save_current_settings(self):
-        save_settings({
+        data = {
             "company":     self.company_var.get(),
             "month":       self.month_var.get(),
             "year":        self.year_var.get(),
             "excel_path":  self.excel_path_var.get(),
             "output_path": self.output_path_var.get(),
-        })
+        }
+        # Optionally save Excel password
+        try:
+            if getattr(self, 'remember_pwd_var', None) and self.remember_pwd_var.get():
+                data["excel_password"] = self.excel_pwd_var.get()
+                data["remember_password"] = True
+            else:
+                data.pop("excel_password", None)
+                data["remember_password"] = False
+        except Exception:
+            pass
+
+        save_settings(data)
 
     # ── Period preview ────────────────────────────────────────────────────────
 
@@ -511,9 +551,17 @@ class PaySlipApp(ctk.CTk):
         self._log(f"  Output    : {output}")
         self._log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
+        # Use inline password field (so Windows users don't need terminal input)
+        try:
+            pwd = self.excel_pwd_var.get().strip() if hasattr(self, 'excel_pwd_var') else ''
+        except Exception:
+            pwd = ''
+
+        ep = excel if not pwd else f"{excel}::{pwd}"
+
         def worker():
             result = generate_pdf(
-                excel_path=excel,
+                excel_path=ep,
                 output_path=output,
                 company_name=company,
                 pay_period=pay_period,

@@ -3,6 +3,9 @@ Excel/*.xlsx
 Excel/*.xls
 Excel/*.csv
 
+# ─── Test fixtures (may contain copies of real salary files — never commit) ────
+tests/fixtures/
+
 # ─── Generated PDF Output ──────────────────────────────────────────────────────
 PaySlips_Output.pdf
 *.pdf

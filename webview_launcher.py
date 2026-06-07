@@ -135,6 +135,7 @@ class PaySlipBridge:
     def start_generation(self, payload: dict) -> dict:
         data = payload or {}
         excel_path = str(data.get("excelPath", "")).strip()
+        password = str(data.get("password", "")).strip()
         output_path = str(data.get("outputPath", "")).strip()
         company_name = str(data.get("companyName", "")).strip()
         month = str(data.get("month", "")).strip()
@@ -182,8 +183,9 @@ class PaySlipBridge:
 
         def worker():
             try:
+                ep = excel_path if not password else f"{excel_path}::{password}"
                 result = generate_pdf(
-                    excel_path=excel_path,
+                    excel_path=ep,
                     output_path=output_path,
                     company_name=company_name,
                     pay_period=pay_period,

@@ -6,6 +6,16 @@ Imported by app.py (GUI) and generate_payslips.py (CLI).
 """
 
 import openpyxl
+import io
+import re
+try:
+    import msoffcrypto
+except Exception:
+    msoffcrypto = None
+try:
+    import xlrd
+except Exception:
+    xlrd = None
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm, mm
 from reportlab.pdfgen import canvas
@@ -70,15 +80,186 @@ C_ACCENT      = colors.HexColor("#2d3a8c")
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def read_employees(excel_path: str) -> list:
-    """Return list of rows (each a list of cell values), skipping header row."""
-    wb = openpyxl.load_workbook(excel_path)
-    ws = wb.active
+    """Return list of rows (each a list of cell values), skipping header row.
+
+    This function is robust to both .xls and .xlsx formats and can handle
+    password-protected files if they are decrypted first using msoffcrypto.
+    If the workbook contains a header row somewhere near the top, we try
+    to detect it automatically and map necessary columns from the template
+    into the internal column layout used by the generator.
+    """
+    # For backward compatibility, keep a simple call signature where the
+    # caller may optionally pass a tuple (path, password) encoded as
+    # "path::password". This keeps API simple for callers that want to
+    # provide a password via a single string. Otherwise, they should pass
+    # the plain path and manage decryption externally.
+    password = None
+    if isinstance(excel_path, str) and "::" in excel_path:
+        excel_path, password = excel_path.split("::", 1)
+
+    def _read_all_rows_from_stream(stream, ext):
+        rows = []
+        if ext == ".xls":
+            if xlrd is None:
+                raise RuntimeError("xlrd is required to read .xls files (install xlrd>=2.0.1)")
+            data = stream.read()
+            book = xlrd.open_workbook(file_contents=data)
+            sheet = book.sheet_by_index(0)
+            for r in range(sheet.nrows):
+                row = [sheet.cell_value(r, c) for c in range(sheet.ncols)]
+                rows.append(row)
+        else:
+            # .xlsx or unknown - let openpyxl handle it
+            stream.seek(0)
+            wb = openpyxl.load_workbook(stream, data_only=True)
+            ws = wb.active
+            for row in ws.iter_rows(values_only=True):
+                rows.append(list(row))
+            wb.close()
+        return rows
+
+    ext = os.path.splitext(excel_path)[1].lower()
+    # Handle plain files or decrypt if password provided
+    if password and msoffcrypto is None:
+        raise RuntimeError("msoffcrypto-tool is required to open password-protected files")
+
+    if password:
+        with open(excel_path, "rb") as fh:
+            of = msoffcrypto.OfficeFile(fh)
+            of.load_key(password=password)
+            bio = io.BytesIO()
+            of.decrypt(bio)
+            bio.seek(0)
+            rows = _read_all_rows_from_stream(bio, ext)
+    else:
+        # No password — try to read directly
+        if ext == ".xls":
+            if xlrd is None:
+                raise RuntimeError("xlrd is required to read .xls files")
+            book = xlrd.open_workbook(excel_path)
+            sheet = book.sheet_by_index(0)
+            rows = []
+            for r in range(sheet.nrows):
+                row = [sheet.cell_value(r, c) for c in range(sheet.ncols)]
+                rows.append(row)
+        else:
+            wb = openpyxl.load_workbook(excel_path, data_only=True)
+            ws = wb.active
+            rows = []
+            for row in ws.iter_rows(values_only=True):
+                rows.append(list(row))
+            wb.close()
+
+    # Normalize cell values to simple strings/numbers
+    def _cell_text(v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v.strip()
+        try:
+            return v
+        except Exception:
+            return str(v)
+
+    # Detect header row by looking for known header keywords
+    header_keywords = [
+        "emp", "employee", "name", "basic", "gross", "net",
+        "allowance", "attendance", "incentive", "ot", "salary",
+    ]
+
+    header_idx = None
+    max_scan = min(40, len(rows))
+    for i in range(max_scan):
+        row = rows[i]
+        text = " ".join([str(_cell_text(c)).lower() for c in row if c is not None])
+        matches = sum(1 for k in header_keywords if k in text)
+        if matches >= 3:
+            header_idx = i
+            break
+
+    if header_idx is None:
+        header_idx = 0
+
+    header_row = [str(_cell_text(c)).strip() for c in rows[header_idx]]
+
+    # Mapping of signature strings -> target internal column constants
+    synonyms = {
+        # Employee identifier — match whole words only to avoid substring hits (e.g. 'PAID' contains 'id')
+        "emp no": COL_EMP_NO, "employee no": COL_EMP_NO, "emp": COL_EMP_NO,
+        "name": COL_NAME,
+        "department": COL_DEPARTMENT, "dept": COL_DEPARTMENT,
+        "designation": COL_DESIGNATION, "desig": COL_DESIGNATION,
+        "basic": COL_BASIC,
+        "allowance": COL_ALLOWANCE,
+        # 'Att. Bonus' normalises to 'att bonus'; also accept plain 'att' or 'attendance'
+        "attendance bonus": COL_ATT_BONUS, "att bonus": COL_ATT_BONUS,
+        "att": COL_ATT_BONUS, "attendance": COL_ATT_BONUS,
+        "fixed allowance": COL_FIXED_ALLOW,
+        "incentive": COL_INCENTIVE,
+        "normal ot": COL_NORMAL_OT, "normal ot amount": COL_NORMAL_OT_AMT,
+        "double ot": COL_DOUBLE_OT, "double ot amount": COL_DOUBLE_OT_AMT,
+        "gross salary": COL_GROSS, "gross": COL_GROSS,
+        "salary advance": COL_SAL_ADV, "salary adv": COL_SAL_ADV,
+        "no pay": COL_NO_PAY, "no pay amount": COL_NO_PAY_AMT,
+        "attendance bonus ded": COL_ATT_BON_DED, "attendance bonus deduction": COL_ATT_BON_DED,
+        "allowance ded": COL_ALLOW_DED, "allowance deduction": COL_ALLOW_DED,
+        # EPF/ETF: 'E.P.F. 8%' normalises to 'e p f 8%' (dots → spaces), so match both forms
+        "epf 8%": COL_EPF8, "epf 8": COL_EPF8, "e p f 8%": COL_EPF8, "e p f 8": COL_EPF8,
+        "late": COL_LATE, "late deduction": COL_LATE_DED,
+        "welfare": COL_WELFARE,
+        "total deduction": COL_TOTAL_DED, "total ded": COL_TOTAL_DED,
+        "net salary": COL_NET_SALARY, "net": COL_NET_SALARY,
+        "epf 12%": COL_EPF12, "e p f 12%": COL_EPF12,
+        "etf 3%": COL_ETF3, "e t f 3%": COL_ETF3, "etf": COL_ETF3,
+    }
+
+    # Helper normalize header text
+    def _norm(h):
+        if not h:
+            return ""
+        t = h.lower()
+        t = re.sub(r"[^a-z0-9% ]+", " ", t)
+        t = re.sub(r"\s+", " ", t).strip()
+        return t
+
+    mapped_cols = {}
+    dup_count = {}
+    for idx, h in enumerate(header_row):
+        nh = _norm(h)
+        for key, target in synonyms.items():
+            if key in nh:
+                # handle duplicate header names (Allowance, Incentive, Attendance Bonus)
+                count = dup_count.get(target, 0)
+                dup_count[target] = count + 1
+                # Map first occurrence to primary target; second to deduction/secondary where applicable
+                if target == COL_ALLOWANCE and count >= 1:
+                    mapped_cols[COL_ALLOW_DED] = idx
+                elif target == COL_ATT_BONUS and count >= 1:
+                    mapped_cols[COL_ATT_BON_DED] = idx
+                elif target == COL_INCENTIVE and count >= 1:
+                    mapped_cols[COL_INCENTIVE2] = idx
+                else:
+                    mapped_cols[target] = idx
+                break
+
+    # If Emp No not found, try to assume first column
+    if COL_EMP_NO not in mapped_cols and len(header_row) > 0:
+        mapped_cols[COL_EMP_NO] = 0
+
     employees = []
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        if row[0] is None:
+    for row in rows[header_idx + 1:]:
+        # stop on long run of empty leading cell
+        if not row or row[0] is None or str(row[0]).strip() == "":
+            # skip empty rows
             continue
-        employees.append(list(row))
-    wb.close()
+        # build normalized row with expected length
+        max_cols = max(COL_ETF3, COL_NET_SALARY) + 1
+        nrow = [None] * max_cols
+        for target, col_idx in mapped_cols.items():
+            if col_idx < len(row):
+                nrow[target] = row[col_idx]
+        employees.append(nrow)
+
     return employees
 
 

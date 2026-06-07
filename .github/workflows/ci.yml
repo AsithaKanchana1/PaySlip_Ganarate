@@ -1,0 +1,53 @@
+name: 🧪 CI — Lint & Test
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest ]
+        python: [ "3.11" ]
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Set up Python ─────────────────────────────────────────────────────
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      # ── 3. Install runtime + dev dependencies ────────────────────────────────
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install runtime deps (skip GUI-only ones on headless CI)
+          pip install openpyxl reportlab pillow msoffcrypto-tool xlrd
+          # Install test dependencies
+          pip install pytest pytest-cov
+
+      # ── 4. Run pytest with coverage ──────────────────────────────────────────
+      - name: Run tests
+        run: |
+          pytest tests/ -v --tb=short --cov=payslip_core --cov-report=term-missing
+
+      # ── 5. Upload coverage report as artifact ────────────────────────────────
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: .coverage
+          retention-days: 14
