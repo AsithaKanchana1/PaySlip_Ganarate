@@ -1,139 +1,321 @@
-## AI Model Guide for PaySlip_Ganarate
+# AI Model Guide — PaySlip_Ganarate
 
-### Purpose
-This document supplies AI models and contributors with a concise project overview, current state, actions taken, and recommended next steps and expectations.
-
-### Project Summary
-- **Name:** PaySlip_Ganarate
-- **Goal:** Generate employee payslips (PDF) from Excel/CSV input and provide a small webview GUI for preview and launching.
-- **Key entry points:** `app.py`, `generate_payslips.py`, `webview_launcher.py`.
-
-### Important Files (quick reference)
-- `app.py` — application entry for GUI/web integration.
-- `generate_payslips.py` — core script to generate payslips from spreadsheets.
-- `payslip_core.py` — core logic and helpers for data parsing and PDF output.
-- `index.html` — webview UI used by the app.
-- `requirements.txt` — Python dependencies.
-- `README.md` — human-facing project readme.
-- `docs/` — additional documentation and guides.
-
-### What AI models have done (session log)
+> **IMPORTANT FOR AI AGENTS:** This file is the single source of truth for everything that has been built, fixed, and decided in this project. **Never delete or overwrite past session entries.** Always append a new session block at the bottom of the session log. Read this file in full before making any changes.
 
 ---
 
-#### ✅ Session 1 — 2026-06-07 (Antigravity / Claude Sonnet)
+## Project Summary
 
-**Task: Complete all "Suggested small first tasks" from this guide**
-
-| File | Action | Description |
-|------|--------|-------------|
-| `tests/__init__.py` | NEW | Python package marker |
-| `tests/conftest.py` | NEW | Pytest fixtures |
-| `tests/test_payslip_core.py` | NEW | 27 unit tests |
-| `.github/workflows/ci.yml` | NEW | GitHub Actions CI: runs pytest on push/PR |
-| `Dockerfile` | NEW | Headless Docker image (Python 3.11-slim) |
-| `requirements.txt` | MODIFIED | Added `pytest>=7.0.0`, `pytest-cov>=4.0.0` |
-
-Result: **27 passed in 0.68s** (Python 3.14.5, pytest 9.0.3)
+| Field | Value |
+|-------|-------|
+| **Name** | PaySlip_Ganarate |
+| **Goal** | Generate employee payslips (PDF) from a password-protected Excel salary sheet; provide a desktop GUI (customtkinter) for non-technical users |
+| **Company** | New Lanka Clothing |
+| **Developer** | Asitha Kanchana — https://github.com/AsithaKanchana1 |
+| **Primary language** | Python 3.11+ |
+| **Target platform** | Windows (installer .exe) + Linux (dev/CI) |
 
 ---
 
-#### ✅ Session 2 — 2026-06-07 (Antigravity / Claude Sonnet)
+## Important Files — Quick Reference
 
-**Task: Use real-world Excel template (Excel/ folder, password `1111`) instead of synthetic data; add tests/fixtures/ to .gitignore**
-
-**Bugs fixed in `payslip_core.py`:**
-- `'E.P.F.    8%'` → normalized to `'e p f 8%'` (dots become spaces) — added `"e p f 8%"` / `"e p f 8"` synonyms
-- `'E.P.F. 12%'` → normalized to `'e p f 12%'` — added `"e p f 12%"` synonym
-- `'E.T.F.     3%'` → normalized to `'e t f 3%'` — added `"e t f 3%"` synonym
-- `'Att. Bonus'` → normalized to `'att bonus'` — added `"att bonus"` and `"att"` synonyms
-- `'PAID'` → was falsely matching synonym `"id"` → removed `"id"` as an EmpNo synonym to prevent substring false-positives
-
-**Note discovered:** The real Excel template uses formula-driven salary cells. `openpyxl data_only=True` reads cached formula results — if the file hasn't been recalculated and saved by Excel, those cells come back as `None`. This is expected behaviour and is documented in `test_basic_salary_or_formula_column_present`.
-
-| File | Action | Description |
-|------|--------|-------------|
-| `tests/conftest.py` | REWRITE | Uses real Excel from `Excel/` folder (password `1111`); skips gracefully on CI |
-| `tests/test_payslip_core.py` | REWRITE | Tests use real file; added wrong-password test; formula-cell test documents openpyxl limitation |
-| `tests/fixtures/` | DELETED | Removed synthetic fixture directory (no longer needed) |
-| `.gitignore` | MODIFIED | Added `tests/fixtures/` section |
-| `payslip_core.py` | MODIFIED | Fixed 5 synonym-mapping bugs for real-world column headers |
-
-Result: **27 passed in 8.54s** (Python 3.14.5, pytest 9.0.3)
+| File | Role |
+|------|------|
+| `app.py` | Desktop GUI entry point (customtkinter) |
+| `payslip_core.py` | **Core logic** — Excel parsing + PDF generation. Most changes happen here. |
+| `generate_payslips.py` | CLI entry point (headless, no GUI) |
+| `webview_launcher.py` | Webview launcher (alternative UI) |
+| `index.html` | Webview HTML UI |
+| `requirements.txt` | Python dependencies (runtime + dev/test) |
+| `Dockerfile` | Headless Docker image for CLI use and running tests |
+| `.github/workflows/build-windows.yml` | GitHub Actions: builds Windows .exe + installer + GitHub Release |
+| `.github/workflows/ci.yml` | GitHub Actions: runs pytest with coverage on push/PR |
+| `installer.iss` | Inno Setup script for Windows installer |
+| `build_windows.bat` | Local Windows build script |
+| `tests/conftest.py` | Pytest session fixtures — loads real Excel from `Excel/` folder |
+| `tests/test_payslip_core.py` | 27 unit + integration tests |
+| `docs/` | All documentation including this file |
 
 ---
 
-#### ✅ Session 3 — 2026-06-07 (Antigravity / Claude Sonnet)
+## Excel Sheet Structure (Critical — read before touching `payslip_core.py`)
 
-**Task: Fix GitHub Actions not generating the Windows EXE**
+The real salary Excel (`Excel/*.xlsx`, password `1111`) has a **non-standard layout**:
 
-**Root cause:** `.github/workflows/build-windows.yml` contained **two full workflow definitions concatenated into one file** — GitHub Actions rejects this as invalid YAML and never runs the build.
+### Header
+- Row 0–3: empty / title rows
+- **Row 4: column headers** (auto-detected by `read_employees` scanning for keyword matches)
 
-**Additional bugs found:**
-- `installer.iss` referenced `Excel\.gitkeep` which is gitignored → Inno Setup would fail with "file not found"
-- `build_windows.bat` also tried to `copy Excel\.gitkeep` → silent failure on CI
-- `msoffcrypto-tool` and `xlrd` were missing from the CI pip install command
+### Column headers (39 columns, row 4)
+```
+Col 0:  EPF NO;          ← EPF number (manually entered, never formula)
+Col 1:  No:              ← sequential employee number (manually entered, never formula)
+Col 2:  Name             ← employee name
+Col 3:  Net      Salary  ← cached formula result
+Col 4:  PAID
+Col 5:  BANK
+Col 6:  Basic
+Col 7:  Per day Value
+Col 8:  Fixed Allowance
+Col 9:  Allowance
+Col 10: Food Allowance
+Col 11: Att. Bonus       ← note: dots in name, normalises to 'att bonus'
+Col 12: Salary Areas
+Col 13: Incentive
+Col 14: Normal OT (H)
+Col 15: Double OT (H)
+Col 16: Normal OT
+Col 17: Double OT
+Col 18: Incentive        ← second Incentive column → maps to COL_INCENTIVE2
+Col 19: Transport Allowance
+Col 20: Gross Salary
+Col 21: No Pay
+Col 22: No Pay           ← duplicate
+Col 23: AB
+Col 24: Att. Bonus       ← second Att Bonus → maps to COL_ATT_BON_DED
+Col 25: Damro - Installment
+Col 26: Allowance        ← second Allowance → maps to COL_ALLOW_DED
+Col 27: Salary Advance
+Col 28: Account Opening
+Col 29: E.P.F.    8%     ← dots + spaces → normalises to 'e p f 8%'
+Col 30: Late Time
+Col 31: Late
+Col 32: welfare
+Col 33: FOOD
+Col 34: FOB Deduction
+Col 35: Total Deduction
+Col 36: Net Salary
+Col 37: E.P.F. 12%       ← normalises to 'e p f 12%'
+Col 38: E.T.F.     3%    ← normalises to 'e t f 3%'
+```
 
-| File | Action | Description |
-|------|--------|-------------|
-| `.github/workflows/build-windows.yml` | REWRITE | Single clean workflow (was two workflows concatenated); added `msoffcrypto-tool`/`xlrd` to install; fixed PowerShell release step to reliably glob the output exe |
-| `installer.iss` | MODIFIED | Removed `Excel\.gitkeep` source reference; Excel dir still created via `[Dirs]` section |
-| `build_windows.bat` | MODIFIED | Replaced `copy Excel\.gitkeep` with creating a `PUT_EXCEL_FILE_HERE.txt` placeholder |
+### Department section-header rows
+Departments are **not a column** — they are embedded as special rows between employees:
+- A department-header row has **only the Name cell filled in** (e.g. `'STAFF'`, `'MECHANIC'`, `'QUALITY DEPARTMENT'`)
+- Columns `EPF NO;` and `No:` are **always blank** on these rows (they are manually entered, never formula-driven)
+- `read_employees()` detects these rows and injects the department into `COL_DEPARTMENT` for all following employees
 
-- `TestReadEmployees` (9 tests) — Excel parsing, column mapping, error handling
-- `TestGeneratePdf` (9 tests) — PDF generation: file creation, employee count, PDF magic bytes, callbacks
+**Known departments in the April-2026 sheet:**
+`STAFF`, `MECHANIC`, `T.MECHANIC`, `SECURITY`, `QUALITY DEPARTMENT`, `LINE RECORDER`,
+`MACHINE OPERATOR`, `SUPERVISOR`, `TMO`, `HELPER (PRODUCTION)`, `IRON OPERATOR`,
+`WEARE HOUSE`, `CUTTING DEPARTMENT`, `STORES HELPER`, `CLEANING DEPARTMENT`
 
-**Commands to run tests:**
+### Formula cells
+- Most salary columns (Basic, Gross, Net, EPF, etc.) are **formula-driven** in real sheets
+- `openpyxl data_only=True` reads **cached formula results** — correct if the file was last saved by Microsoft Excel
+- If the file was never opened/recalculated in Excel (e.g. created programmatically), formula cells return `None`
+- **Do not** rely on `None` vs `0` to detect non-employee rows — formula cells can cache as `0`
+
+---
+
+## Key Design Decisions in `payslip_core.py`
+
+### Column synonym mapper (`read_employees`)
+- Headers are normalised: lowercased, non-alphanumeric chars → spaces, deduplicated spaces
+- EPF/ETF headers with dots (e.g. `E.P.F.    8%` → `e p f 8%`) are matched with spaced forms
+- Duplicate column names (Allowance ×2, Incentive ×2, Att. Bonus ×2) are mapped to primary + secondary internal columns by occurrence order
+- `"id"` was removed as an EmpNo synonym to prevent `'PAID'` from false-matching
+
+### Department detection (formula-proof)
+- Uses the two manually-entered identity columns (`No:` and `EPF NO;`) as signals
+- These columns are **never formula-driven** → reliably `None` on department-header rows even when other formula cells cache as `0`
+- **Not** using filled-cell count (old approach broke with formula files)
+
+### Row skipping rules (in order)
+1. `if not row` — completely missing row object
+2. Department-header row detected → update `current_dept`, skip (don't add as employee)
+3. Name column is empty → skip (no payslip generated)
+
+---
+
+## How to Run Tests
+
 ```bash
-# Using venv (Python 3.14):
-.venv/bin/pytest tests/test_payslip_core.py -v
+# Activate venv first (Python 3.14 in .venv)
+.venv/bin/pytest tests/ -v
 
-# Or with coverage:
+# With coverage report
 .venv/bin/pytest tests/ -v --cov=payslip_core --cov-report=term-missing
 
-# Or via Docker:
+# Via Docker (runs pytest by default)
 docker build -t payslip-generator .
 docker run --rm payslip-generator
 ```
 
----
-
-### How AI models should use this repo
-- **Context window strategy:** Provide only the relevant files (module under change, tests, and small supporting files). Prefer focused snippets over whole files when possible.
-- **Task framing:** Use explicit instructions: goal, constraints, input examples, and expected output format (diff patch, new file, unit test, or step-by-step plan).
-- **Safety & privacy constraints:** Treat `Excel/` data and any sample data as potentially sensitive; do not print real personal data. Prefer synthetic examples.
-- **Coding style:** Keep changes minimal and maintain existing APIs. Add tests for behavioral changes.
-
-### Recommended prompt templates for common tasks
-- Bugfix: "Find and fix the bug in `payslip_core.py` that causes X when given Y; produce a concise patch and a unit test." 
-- Feature: "Add feature: [short description]. Update `generate_payslips.py` to accept [new flag], modify core logic, and add tests." 
-- Refactor: "Refactor `generate_payslips.py` to extract reusable functions. Keep behavior and CLI stable. Provide unit tests." 
-- Tests: "Write pytest unit tests for `payslip_core.py` covering parsing and PDF rendering using synthetic input." 
-
-### Input / Output expectations for automated agents
-- **Inputs provided to the model:** file path(s), small code snippets (<=500 lines), failing test output, sample input spreadsheet (synthetic), and exact reproduction steps.
-- **Desired outputs:** an apply_patch-style diff, or a clear set of file changes with tests. When returning code, include a short explanation and commands to run tests.
-
-### Quick run & dev notes
-- To install deps: `pip install -r requirements.txt`.
-- Typical run: `python generate_payslips.py --input Excel/sample.xlsx --out out/` (adapt per actual CLI in repo).
-- Environment: Linux (developer machine), user prefers Fish shell; CI should use POSIX-compatible shells.
-- Tests: `.venv/bin/pytest tests/ -v` (all 27 tests pass as of 2026-06-07)
-
-### Validation & testing
-- pytest is now in `requirements.txt` as a dev dependency.
-- `tests/` directory exists with synthetic Excel/CSV fixtures and tests that assert output PDF existence and basic content checks.
-- CI runs automatically on push to `main` / `dev` branches via `.github/workflows/ci.yml`.
-
-### Remaining roadmap for AI contributions
-- Add data privacy checklist and redaction helpers to avoid leaking real PII in outputs.
-- Evaluate adding an ML-based OCR fallback for scanned input spreadsheets or images.
-- Improve input validation and error messages in `generate_payslips.py`.
-- Add `.dockerignore` to slim down Docker build context.
-- Add a `Dockerfile` multi-stage build for even smaller final image.
-
-### Communication / Handoff
-- When proposing changes, always include: 1) short summary, 2) files changed, 3) commands to run tests, 4) rationale for design choices.
-- When done, update the **Session log** table above with date, agent name, files changed, and test results.
+> **Note:** Tests require a real `.xlsx` file in `Excel/`. They skip automatically if none is present (e.g. fresh CI clone where `Excel/` is git-ignored). The Excel password is `1111`.
 
 ---
+
+## How to Build the Windows EXE
+
+```bash
+# Locally on Windows:
+build_windows.bat         # creates dist\PaySlipGenerator\
+build_installer.bat       # creates Output\PaySlipGenerator_Setup_v1.0.exe
+
+# Via GitHub Actions (automatic on push to main):
+# → .github/workflows/build-windows.yml
+# → Produces GitHub Release with installer .exe attached
+```
+
+---
+
+## Session Log — All AI Contributions
+
+> **Rule for AI agents:** Always ADD a new session block here. Never delete or modify past sessions. Each session must include: date, task, files changed, and test results.
+
+---
+
+### ✅ Session 1 — 2026-06-07 (Antigravity / Claude Sonnet)
+
+**Task:** Complete the "Suggested small first tasks" from the original guide
+
+**What was done:**
+- Created `tests/` directory with `__init__.py`, `conftest.py` (synthetic xlsx fixture), and `test_payslip_core.py` (27 unit tests)
+- Created `.github/workflows/ci.yml` — GitHub Actions CI that runs pytest with coverage on every push/PR to `main` or `dev`
+- Created `Dockerfile` — headless Python 3.11-slim image for CLI use and running tests
+- Added `pytest>=7.0.0` and `pytest-cov>=4.0.0` to `requirements.txt`
+
+| File | Action |
+|------|--------|
+| `tests/__init__.py` | NEW |
+| `tests/conftest.py` | NEW — synthetic xlsx fixture (3 fake employees) |
+| `tests/test_payslip_core.py` | NEW — 27 tests covering `_fmt`, `read_employees`, `generate_pdf` |
+| `.github/workflows/ci.yml` | NEW |
+| `Dockerfile` | NEW |
+| `requirements.txt` | MODIFIED — added pytest deps |
+
+**Test result:** `27 passed in 0.68s`
+
+---
+
+### ✅ Session 2 — 2026-06-07 (Antigravity / Claude Sonnet)
+
+**Task:** Switch tests to use the real Excel template (password `1111`); add `tests/fixtures/` to `.gitignore`
+
+**What was done:**
+- Rewrote `tests/conftest.py` to use the real password-protected Excel from `Excel/` folder; skips gracefully on CI
+- Rewrote `tests/test_payslip_core.py` to use real file; added wrong-password test; documented openpyxl formula-cell limitation
+- Deleted synthetic `tests/fixtures/` directory
+- Fixed 5 real column-mapping bugs discovered by testing against real Excel:
+
+| Bug | Fix |
+|-----|-----|
+| `E.P.F.    8%` normalises to `e p f 8%` (dots→spaces) — no match | Added `"e p f 8%"` / `"e p f 8"` synonyms |
+| `E.P.F. 12%` normalises to `e p f 12%` | Added `"e p f 12%"` synonym |
+| `E.T.F.     3%` normalises to `e t f 3%` | Added `"e t f 3%"` synonym |
+| `Att. Bonus` normalises to `att bonus` — no match | Added `"att bonus"` and `"att"` synonyms |
+| `PAID` falsely matched synonym `"id"` → wrong EmpNo | Removed `"id"` synonym entirely |
+
+| File | Action |
+|------|--------|
+| `tests/conftest.py` | REWRITE — real Excel fixture |
+| `tests/test_payslip_core.py` | REWRITE — real file + wrong-password test |
+| `tests/fixtures/` | DELETED |
+| `.gitignore` | MODIFIED — added `tests/fixtures/` |
+| `payslip_core.py` | MODIFIED — fixed 5 synonym bugs |
+
+**Test result:** `27 passed in 8.54s`
+
+---
+
+### ✅ Session 3 — 2026-06-07 (Antigravity / Claude Sonnet)
+
+**Task:** Fix GitHub Actions not generating the Windows EXE
+
+**Root cause:** `build-windows.yml` had **two complete workflow definitions concatenated in one file** — GitHub Actions rejected the invalid YAML silently and never ran.
+
+**Additional bugs fixed:**
+
+| Bug | Fix |
+|-----|-----|
+| Two workflows in one YAML file | Rewrote as single clean 147-line workflow |
+| `msoffcrypto-tool` and `xlrd` missing from CI pip install | Added both packages |
+| `installer.iss` referenced `Excel\.gitkeep` (gitignored → doesn't exist in CI) | Removed reference; Excel dir still created via `[Dirs]` |
+| `build_windows.bat` tried to `copy Excel\.gitkeep` | Replaced with `PUT_EXCEL_FILE_HERE.txt` placeholder |
+
+| File | Action |
+|------|--------|
+| `.github/workflows/build-windows.yml` | REWRITE — single valid YAML workflow |
+| `installer.iss` | MODIFIED — removed missing `.gitkeep` reference |
+| `build_windows.bat` | MODIFIED — replaced missing `.gitkeep` copy |
+
+**Note:** Push to GitHub requires credentials — commit is local, push manually with `git push`.
+
+---
+
+### ✅ Session 4 — 2026-06-07 (Antigravity / Claude Sonnet)
+
+**Task:** Make departments appear on payslips — they have no dedicated column
+
+**Discovery:** The Excel sheet embeds department names as special section-header rows. When a row has only the Name cell filled (EPF and sequential No. are blank), that row is a department label for all employees that follow it.
+
+**What was done:**
+- Added department-header detection logic to `read_employees()` in `payslip_core.py`
+- Scans for section-header rows (Name filled, No: blank, EPF blank)
+- Tracks `current_dept` as it reads down the sheet
+- Injects the department into `COL_DEPARTMENT` for every following employee row
+
+**Result:** 16 departments detected and assigned correctly across 212 employees in the April-2026 sheet.
+
+| File | Action |
+|------|--------|
+| `payslip_core.py` | MODIFIED — added `_is_dept_header()` + dept injection in parsing loop |
+
+**Test result:** `27 passed in 10.00s`
+
+---
+
+### ✅ Session 5 — 2026-06-07 (Antigravity / Claude Sonnet)
+
+**Task 1:** Make department detection formula-proof (formulas cache as `0`, not `None`)
+
+**Problem:** Old detection counted `non-None cells == 1`. With formula Excel files, all formula cells (Basic, Gross, EPF, etc.) cache as `0` instead of `None` → counted as filled → department rows falsely treated as employee rows.
+
+**Fix:** Changed detection to check only the **two manually-entered identity columns** (`EPF NO;` col 0 and sequential `No:` col 1). These columns are **never formula-driven** so they stay blank on department rows regardless of what other formula cells cache.
+
+**Task 2:** Skip rows where the Name column is empty
+
+**Rule:** Any row with a blank Name cell → skip → no payslip generated.
+This handles: blank spacer rows, summary/totals rows, formula-only placeholder rows.
+
+**Result:** Employee count changed from 212 → 198 (14 nameless rows correctly skipped).
+
+| File | Action |
+|------|--------|
+| `payslip_core.py` | MODIFIED — formula-proof `_is_dept_header()`; simplified row-skip to name-empty check |
+
+**Test result:** `27 passed in 8.22s`
+
+---
+
+## Current Known Limitations
+
+| Limitation | Status |
+|-----------|--------|
+| Formula cells read as `None` if file not saved by Excel after calc | Expected — documented in tests |
+| 2 employees before first dept header have no department (`(none)`) | Known — they appear before first section header in the sheet |
+| Designation column not present in this Excel layout | Not mapped — column doesn't exist in this sheet format |
+| `openpyxl` cannot evaluate formulas — only reads cached results | By design — use Microsoft Excel to save with calculated values |
+
+---
+
+## Remaining Roadmap for AI Contributions
+
+- [ ] Add `.dockerignore` to slim Docker build context
+- [ ] Add data privacy checklist / redaction helpers (avoid PII in logs)
+- [ ] Improve input validation and error messages in `generate_payslips.py`
+- [ ] Evaluate ML-based OCR fallback for scanned salary sheets
+- [ ] Add Dockerfile multi-stage build for smaller final image
+- [ ] Fix the 2 employees before first department header (carry company name as fallback dept)
+
+---
+
+## Communication / Handoff Rules
+
+1. **Always read this file first** before making any changes to the repo
+2. **Never delete past session entries** — append new sessions at the bottom of the Session Log
+3. When done with a task, add a new `### ✅ Session N` block with: date, task, files changed, test results
+4. When proposing changes, include: short summary, files changed, commands to run tests, rationale
+5. Keep changes minimal — maintain existing APIs and add tests for any behavioral change
+6. The Excel password is `1111` — never commit real Excel files (they are gitignored)
